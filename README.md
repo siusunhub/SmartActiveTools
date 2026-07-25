@@ -33,8 +33,6 @@ The project is structured following clean architectural principles with a strict
 ```
 SmartActiveTools/
 ├── InputAutomationTool.slnx            # Solution definition file
-├── docs/
-│   └── InputAutomationTool-Plan.md     # Design specification & plan
 └── src/
     ├── Core/                            # InputAutomationTool.Core (.NET 10 Class Library)
     │   ├── AutomationEngine.cs          # State machine driving workflow & batch execution
