@@ -1,0 +1,33 @@
+using System.Collections.Specialized;
+using System.Windows;
+using System.Windows.Controls;
+using InputAutomationTool.Core;
+
+namespace InputAutomationTool.App;
+
+public partial class MainWindow : Window
+{
+    private readonly MainViewModel _vm = new();
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        DataContext = _vm;
+
+        // Auto-scroll the log to the newest entry.
+        _vm.Log.CollectionChanged += OnLogChanged;
+    }
+
+    private void OnLogChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action != NotifyCollectionChangedAction.Add)
+            return;
+
+        // Defer so the TextBox has applied the updated bound text before we scroll.
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
+        {
+            if (FindName("LogBox") is TextBox box)
+                box.ScrollToEnd();
+        });
+    }
+}

@@ -1,0 +1,239 @@
+<Window x:Class="InputAutomationTool.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:InputAutomationTool.App"
+        Title="Input Automation Tool" Height="640" Width="480"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <local:LogLevelToBrushConverter x:Key="LevelToBrush" />
+        <local:InverseBoolConverter x:Key="InverseBool" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <Style TargetType="TextBlock" x:Key="FieldLabel">
+            <Setter Property="Margin" Value="0,8,0,2" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />   <!-- target window -->
+            <RowDefinition Height="Auto" />   <!-- detect texts -->
+            <RowDefinition Height="Auto" />   <!-- options -->
+            <RowDefinition Height="*" />      <!-- input + log -->
+            <RowDefinition Height="Auto" />   <!-- buttons -->
+            <RowDefinition Height="Auto" />   <!-- status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- Target window -->
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Text="Window Name:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" />
+            <TextBox Grid.Column="1" Text="{Binding WindowDetectName, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="{Binding WindowDetectDefault, StringFormat=Default: {0}}"
+                     IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+
+            <TextBlock Grid.Row="1" Text="Target Window:" VerticalAlignment="Center" Margin="0,4,8,0" FontWeight="SemiBold" />
+            <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,4,0,0"
+                      ItemsSource="{Binding Windows}"
+                      SelectedItem="{Binding SelectedWindow}"
+                      DisplayMemberPath="Display"
+                      IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+            <Button Grid.Row="1" Grid.Column="2" Content="Refresh" Margin="8,4,0,0" Padding="12,4"
+                    Command="{Binding RefreshCommand}" />
+        </Grid>
+
+        <!-- Detect texts (single-line label + field) -->
+        <Grid Grid.Row="1" Margin="0,6,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Win1 Detect Text:" VerticalAlignment="Center" Margin="0,2,8,2" FontWeight="SemiBold"
+                       ToolTip="Text on the first screen; also the element that is clicked to open the input screen"/>
+            <TextBox    Grid.Row="0" Grid.Column="1" Margin="0,2,0,2"
+                       Text="{Binding Win1Text, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
+                       ToolTip="{Binding Win1Default, StringFormat=Default: {0}}"/>
+
+            <TextBlock Grid.Row="1" Text="Win2 Detect Text:" VerticalAlignment="Center" Margin="0,2,8,2" FontWeight="SemiBold"
+                       ToolTip="Label on the input screen (used to confirm navigation)"/>
+            <TextBox    Grid.Row="1" Grid.Column="1" Margin="0,2,0,2"
+                       Text="{Binding Win2Text, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
+                       ToolTip="{Binding Win2Default, StringFormat=Default: {0}}"/>
+
+            <TextBlock Grid.Row="2" Text="Win3 Fail Text:" VerticalAlignment="Center" Margin="0,2,8,2" FontWeight="SemiBold"
+                       ToolTip="Text shown when the key fails"/>
+            <TextBox    Grid.Row="2" Grid.Column="1" Margin="0,2,0,2"
+                       Text="{Binding Win3Text, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
+                       ToolTip="{Binding Win3Default, StringFormat=Default: {0}}"/>
+
+            <TextBlock Grid.Row="3" Text="Win3 Success Text:" VerticalAlignment="Center" Margin="0,2,8,2" FontWeight="SemiBold"
+                       ToolTip="Text shown on the review screen — clicking Activate here means success"/>
+            <TextBox    Grid.Row="3" Grid.Column="1" Margin="0,2,0,2"
+                       Text="{Binding Win3ReviewText, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
+
+            <TextBlock Grid.Row="4" Text="Continue Button:" VerticalAlignment="Center" Margin="0,2,8,2" FontWeight="SemiBold"
+                       ToolTip="Label of the Continue button on the Win2 input screen (step 2)"/>
+            <TextBox    Grid.Row="4" Grid.Column="1" Margin="0,2,0,2"
+                       Text="{Binding ContinueButtonText, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
+                       ToolTip="Default: Continue"/>
+
+            <TextBlock Grid.Row="5" Text="Activate Button:" VerticalAlignment="Center" Margin="0,2,8,2" FontWeight="SemiBold"
+                       ToolTip="Label of the Activate button on the Win3 success screen"/>
+            <TextBox    Grid.Row="5" Grid.Column="1" Margin="0,2,0,2"
+                       Text="{Binding ActivateButtonText, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
+                       ToolTip="Default: Activate"/>
+
+            <TextBlock Grid.Row="6" Text="Back Button:" VerticalAlignment="Center" Margin="0,2,8,2" FontWeight="SemiBold"
+                       ToolTip="Label of the Back button on the Win3 fail screen"/>
+            <TextBox    Grid.Row="6" Grid.Column="1" Margin="0,2,0,2"
+                       Text="{Binding BackButtonText, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"
+                       ToolTip="Default: Back"/>
+        </Grid>
+
+        <!-- Options -->
+        <WrapPanel Grid.Row="2" Margin="0,10,0,0">
+            <CheckBox Content="Stop on first success" Margin="0,0,16,0" VerticalAlignment="Center"
+                      IsChecked="{Binding StopOnFirstSuccess}"
+                      IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+            <CheckBox Content="Continue testing all" Margin="0,0,16,0" VerticalAlignment="Center"
+                      IsChecked="{Binding ContinueTestingAll}"
+                      IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+            <TextBlock Text="Detect retries:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBox Width="40" Text="{Binding DetectRetries}" Margin="0,0,16,0"
+                     ToolTip="How many times to look for each screen/button before failing."
+                     IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+            <TextBlock Text="Retry delay (ms):" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBox Width="56" Text="{Binding DetectRetryDelayMs}" Margin="0,0,16,0"
+                     ToolTip="Wait this long between detection attempts to let the window refresh."
+                     IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+            <TextBlock Text="Verify timeout (s):" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBox Width="44" Text="{Binding VerifySeconds}" Margin="0,0,16,0"
+                     ToolTip="Keep checking for the result screen for at least this long (verification can be slow)."
+                     IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+            <TextBlock Text="Delay between cases (ms):" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBox Width="64" Text="{Binding BetweenCasesDelayMs}"
+                     IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+        </WrapPanel>
+
+        <!-- Input + log -->
+        <Grid Grid.Row="3" Margin="0,10,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,2">
+                    <Button DockPanel.Dock="Right" Content="Clear" Padding="8,1"
+                            Command="{Binding ClearInputCommand}" />
+                    <TextBlock Text="Input Strings (one per line):" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" AcceptsTab="False"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         FontFamily="Consolas"
+                         IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}" />
+            </DockPanel>
+
+            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="#DDD" />
+
+            <DockPanel Grid.Row="2">
+                <TextBlock DockPanel.Dock="Top" Text="Status Log:" FontWeight="SemiBold" Margin="0,4,0,2" />
+                <TextBox x:Name="LogBox" Text="{Binding LogText, Mode=OneWay}"
+                         IsReadOnly="True" FontFamily="Consolas"
+                         TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto" />
+            </DockPanel>
+        </Grid>
+
+        <!-- Buttons -->
+        <Grid Grid.Row="4" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="Start" Padding="20,6" Margin="0,0,8,0"
+                    Command="{Binding StartCommand}" />
+            <Button Grid.Column="1" Content="{Binding PauseButtonText}" Padding="20,6" Margin="0,0,8,0"
+                    Command="{Binding PauseCommand}" />
+            <Button Grid.Column="2" Content="Stop" Padding="20,6"
+                    Command="{Binding StopCommand}" />
+            <TextBlock Grid.Column="3" Text="{Binding ProgressText}" VerticalAlignment="Center"
+                       HorizontalAlignment="Center" FontWeight="SemiBold" />
+            <Button Grid.Column="4" Content="Dump UIA" Padding="12,6"
+                    Command="{Binding DumpUiaCommand}"
+                    ToolTip="List all UIA-visible elements in the selected window (debug)" />
+        </Grid>
+
+        <!-- Status bar (shows manual Retry/Continue/Stop when a step needs a decision) -->
+        <Border Grid.Row="5" Margin="0,8,0,0" Padding="8,4" CornerRadius="3">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="#F0F0F0" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsAwaitingDecision}" Value="True">
+                            <Setter Property="Background" Value="#FFF4CE" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                            Visibility="{Binding IsAwaitingDecision, Converter={StaticResource BoolToVis}}">
+                    <Button Content="Retry Step" Padding="10,2" Margin="4,0,0,0"
+                            Command="{Binding RetryStepCommand}" />
+                    <Button Content="Continue" Padding="10,2" Margin="4,0,0,0"
+                            Command="{Binding ContinueStepCommand}" />
+                    <Button Content="Stop" Padding="10,2" Margin="4,0,0,0"
+                            Command="{Binding AbortStepCommand}" />
+                </StackPanel>
+                <TextBlock VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="{Binding StatusText}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAwaitingDecision}" Value="True">
+                                    <Setter Property="Text" Value="{Binding DecisionPrompt}" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
