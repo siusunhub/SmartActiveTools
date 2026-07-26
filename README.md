@@ -102,6 +102,7 @@ graph TD
 - **Operating System**: Windows 10 (Build 19041+) or Windows 11 (x64 / ARM64).
 - **Runtime**: .NET 10.0 Desktop Runtime (or SDK to build from source).
 - **OCR Support**: Windows Media OCR (`Windows.Media.Ocr`). Ensure a language pack corresponding to your OS user profile language is installed in Windows Settings.
+- **Permissions**: If the target application runs as Administrator, launch SmartActiveTools as Administrator so Win32/UIA input hooks can interact with it.
 
 ---
 
@@ -111,7 +112,7 @@ graph TD
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/siusunhub/SmartActiveTools.git
    cd SmartActiveTools
    ```
 
