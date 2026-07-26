@@ -72,28 +72,75 @@ SmartActiveTools/
 
 ---
 
-## ⚙️ How It Works (Workflow Engine)
+## ⚙️ How It Works (Workflow Engine & OCR Pipeline)
+
+SmartActiveTools operates on a two-tier architecture: a high-level **State Machine Workflow** that manages multi-screen app navigation, and a low-level **OCR Image & Coordinate Resolution Pipeline** that interacts with custom-rendered UI controls.
 
 ```mermaid
 graph TD
-    A[Start Batch Execution] --> B[Select Target Window]
-    B --> C[Detect Current Screen State]
-    C -->|On Result Screen| D[Click Back Button]
-    D --> C
-    C -->|On Win1 Screen| E[Click Start Text / Option]
-    E --> F[Confirm Win2 Input Screen]
-    C -->|On Win2 Screen| F
-    F --> G[Locate Input Field & Set Text / Paste]
-    G --> H[Click Continue / Submit]
-    H --> I[Read Result Screen & Verify]
-    I -->|Pass| J[Log Success & Continue/Stop]
-    I -->|Fail| K[Log Failure & Reset to Win1]
+    subgraph State_Machine ["1. State Machine Workflow"]
+        A[Start Batch Execution] --> B[Capture Target Window Bitmap]
+        B --> C[OCR Screen Text & Fuzzy Match Anchor]
+        C -->|On Result Screen| D[Click Back Button & Wait Text Gone]
+        D --> B
+        C -->|On Win1 Screen| E[Click Start Anchor & Transition to Win2]
+        E --> F[Confirm Win2 Input Screen]
+        C -->|On Win2 Screen| F
+    end
+
+    subgraph OCR_Input_Pipeline ["2. OCR Coordinate & Input Resolution"]
+        F --> G[Locate Win2 Label Anchor Bounding Box]
+        G --> H{Paste Coordinate Strategy}
+        H -->|1. Custom Position Enabled| I[Use CustomPasteDx/Dy Offset]
+        H -->|2. Saved Machine Memory| J[Use RememberedPasteDx/Dy]
+        H -->|3. Fallback Scan| K[Run 2-D Grid Probe Scan]
+        I --> L[Synthesize Input: Paste / SendInput / ScanCode / Click]
+        J --> L
+        K --> L
+    end
+
+    subgraph OCR_Enhancement ["3. Crop, Contrast Enhancement & Verification"]
+        L --> M{SkipPasteVerify?}
+        M -->|Yes| P[Click Continue / Submit Button]
+        M -->|No| N[Crop Input Region via OcrImageProcessing]
+        N --> O[Grayscale ➔ Darken ➔ 1.8x Contrast ➔ 2x Resample]
+        O --> Q[OCR Read Enhanced Crop & Verify Text Match]
+        Q -->|Verified| P
+        Q -->|Failed / Retry| R[Interactive Prompt or Retry Shift Probe]
+        P --> S[Wait for Win3 Verification / Success Marker]
+    end
 ```
 
-1. **Window Identification**: The driver enumerates top-level Win32 windows and matches the configured target process title.
-2. **Screen State Detection**: Analyzes screen text using UIA or OCR to determine if the target application is on the Start screen (`Win1`), Input screen (`Win2`), or Result screen (`Win3`).
-3. **Automated Input & Submission**: Locates input controls geometrically relative to labels, OCR anchor points, custom paste button offsets (`CustomPasteDx/Dy`), or remembered machine offsets.
-4. **Verification & Exception Recovery**: Waits for result verification, handles timeouts, and offers interactive prompts (`Retry`, `Continue`, `Abort`) if step verification fails.
+### Detailed Workflow & OCR Pipeline Steps
+
+1. **Window Capture & Caching (`ScreenCapture`)**:
+   - Captures high-performance Win32 window bitmaps via `PrintWindow` (`PW_RENDERFULLCONTENT`).
+   - OCR line bounding boxes are cached for `600ms` cycle windows to eliminate CPU overhead during frequent polling.
+
+2. **Anchor Text Recognition & Fuzzy Matching (`FuzzyMatch`)**:
+   - Converts raw `OcrLine` bounding boxes into screen space coordinates.
+   - Evaluates text using Levenshtein distance fuzzy matching, allowing anchor text (`Win1DetectText`, `Win2DetectText`, `Win3FailText`, `Win3SuccText`) to be recognized reliably even with minor OCR artifacts, custom fonts, or anti-aliasing.
+
+3. **Multi-Strategy Paste Coordinate Resolution (`PasteGeometry`)**:
+   - Establishes a DPI-aware base coordinate origin relative to the OCR-located Win2 label center (`CenterX + 50, CenterY + 20`).
+   - **Strategy 1**: Uses hand-picked pixel offset (`CustomPasteDx/Dy`) if `UseCustomPastePosition` is enabled.
+   - **Strategy 2**: Uses machine-cached offset (`RememberedPasteDx/Dy`) learned on the current PC (`RememberedPasteMachine`).
+   - **Strategy 3**: Executes a 2D grid probe scan downward from the label center to locate input field bounds automatically.
+
+4. **Input Entry Synthesis (`InputMethod`)**:
+   - **Paste**: Formats target input onto the Win32 Clipboard and dispatches `Ctrl+V`.
+   - **Type**: Sends char-by-char Unicode keyboard events using Win32 `SendInput`.
+   - **ScanCode**: Simulates raw hardware scan codes for custom DirectX/OpenGL game engine input handlers.
+   - **PasteButton**: Synthesizes a direct Win32 mouse click on the resolved Paste button coordinates.
+
+5. **Image Crop, Enhancement & Text Verification (`OcrImageProcessing`)**:
+   - Crops an explicit region around the target input box (`[X, Y + 15, Width: 350, Height: 45]`).
+   - Applies an advanced multi-pass image enhancement filter:
+     - **Grayscale Conversion**: Normalizes color channels into lumosity values.
+     - **Darken Filter**: Applies color matrix `0.75x` scaling to deepen text strokes.
+     - **Contrast Boosting**: Applies high-contrast matrix transform (`1.8x`) with offset centering.
+     - **Bicubic Resampling**: Upscales the cropped snippet by `2x` using high-quality bicubic interpolation.
+   - Re-reads the enhanced image snippet with `Windows.Media.Ocr` to confirm that the input text landed correctly before clicking Continue (unless `SkipPasteVerify` is enabled).
 
 ---
 
