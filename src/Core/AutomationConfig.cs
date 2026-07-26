@@ -1,22 +1,30 @@
+using System.Text.Json.Serialization;
+
 namespace InputAutomationTool.Core;
 
 /// <summary>
 /// All run settings. Detect-text properties hold the raw UI value; the
-/// <c>Effective*</c> properties apply the "blank → hardcoded default" rule.
+/// <c>Effective*</c> properties apply the "blank → fallback language" rule,
+/// where the fallback set is <see cref="LanguagePresets.Fallback"/>.
+/// Every derived property is <see cref="JsonIgnoreAttribute"/>d — persisting them
+/// would write the resolved defaults straight back into the file that
+/// <see cref="StripDefaults"/> just cleaned.
 /// </summary>
 public sealed class AutomationConfig
 {
-    public string WindowDetectName { get; set; } = DetectionDefaults.DetectWindowName;
+    private static LanguagePreset Def => LanguagePresets.Fallback;
 
-    public string Win1DetectText { get; set; } = DetectionDefaults.DefaultWin1DetectText;
-    public string Win2DetectText { get; set; } = DetectionDefaults.DefaultWin2DetectText;
-    public string Win3DetectText { get; set; } = DetectionDefaults.DefaultWin3DetectText;
+    public string WindowDetectName { get; set; } = Def.WindowName;
+
+    public string Win1DetectText { get; set; } = Def.Win1DetectText;
+    public string Win2DetectText { get; set; } = Def.Win2DetectText;
+    public string Win3FailText { get; set; } = Def.Win3FailText;
 
     /// <summary>Text on the Win3 review screen (requires clicking Activate to proceed).</summary>
-    public string Win3ReviewText { get; set; } = DetectionDefaults.DefaultWin3ReviewText;
-    public string ActivateButtonText { get; set; } = DetectionDefaults.DefaultActivateButtonText;
+    public string Win3SuccText { get; set; } = Def.Win3SuccessText;
+    public string ActivateButtonText { get; set; } = Def.ActivateButtonText;
 
-    public string SuccessText { get; set; } = DetectionDefaults.DefaultSuccessText;
+    public string SuccessText { get; set; } = Def.SuccessText;
 
     /// <summary>Use OCR-based detection instead of UIA (for custom-rendered apps).</summary>
     public bool UseOcr { get; set; }
@@ -30,6 +38,39 @@ public sealed class AutomationConfig
 
     /// <summary>OCR-mode: probe downward (5×) verifying the field, vs. trust the first position.</summary>
     public bool InputProbeShift { get; set; }
+
+    /// <summary>
+    /// OCR-mode: try a hand-picked Paste button offset before anything else.
+    /// The scan and the remembered-position methods stay in place as fallbacks.
+    /// </summary>
+    public bool UseCustomPastePosition { get; set; }
+
+    /// <summary>Hand-picked offset from <see cref="PasteGeometry.BasePoint"/>.</summary>
+    public int CustomPasteDx { get; set; }
+    public int CustomPasteDy { get; set; }
+
+    /// <summary>
+    /// Click the known paste position and go straight to Continue, without
+    /// OCR-confirming the value landed. Requires a known position to be useful.
+    /// </summary>
+    public bool SkipPasteVerify { get; set; }
+
+    /// <summary>
+    /// The offset the 2-D scan last found, remembered so later runs skip the scan.
+    /// Guarded by <see cref="RememberedPasteMachine"/> because %AppData% roams:
+    /// a position learned on one screen is meaningless on another machine.
+    /// </summary>
+    public int? RememberedPasteDx { get; set; }
+    public int? RememberedPasteDy { get; set; }
+    public string RememberedPasteMachine { get; set; } = "";
+
+    /// <summary>The remembered position, or null if unset or learned on another machine.</summary>
+    [JsonIgnore]
+    public (int Dx, int Dy)? RememberedPasteOffset =>
+        RememberedPasteDx is { } dx && RememberedPasteDy is { } dy
+        && string.Equals(RememberedPasteMachine, Environment.MachineName, StringComparison.OrdinalIgnoreCase)
+            ? (dx, dy)
+            : null;
 
     public bool StopOnFirstSuccess { get; set; } = true;
     public bool ContinueTestingAll { get; set; }
@@ -45,61 +86,51 @@ public sealed class AutomationConfig
     /// <summary>Minimum seconds to keep checking for the result/verification screen (it can be slow).</summary>
     public int VerifySeconds { get; set; } = 10;
 
-    public TimeSpan VerifyTimeout => TimeSpan.FromSeconds(Math.Max(1, VerifySeconds));
+    [JsonIgnore] public TimeSpan VerifyTimeout => TimeSpan.FromSeconds(Math.Max(1, VerifySeconds));
 
     /// <summary>Delay between submissions; guards against target-app throttling.</summary>
     public int BetweenCasesDelayMs { get; set; }
 
-    public string ContinueButtonText { get; set; } = DetectionDefaults.ContinueButtonText;
-    public string BackButtonText { get; set; } = DetectionDefaults.BackButtonText;
+    public string ContinueButtonText { get; set; } = Def.ContinueButtonText;
+    public string BackButtonText { get; set; } = Def.BackButtonText;
 
-    public string EffectiveWindowName => Resolve(WindowDetectName, DetectionDefaults.DetectWindowName);
+    [JsonIgnore] public string EffectiveWindowName => Resolve(WindowDetectName, Def.WindowName);
 
-    public string EffectiveWin1 => Resolve(Win1DetectText, DetectionDefaults.DefaultWin1DetectText);
-    public string EffectiveWin2 => Resolve(Win2DetectText, DetectionDefaults.DefaultWin2DetectText);
-    public string EffectiveWin3 => Resolve(Win3DetectText, DetectionDefaults.DefaultWin3DetectText);
-    public string EffectiveWin3Review => Resolve(Win3ReviewText, DetectionDefaults.DefaultWin3ReviewText);
-    public string EffectiveActivateButton => Resolve(ActivateButtonText, DetectionDefaults.DefaultActivateButtonText);
-    public string EffectiveSuccess => Resolve(SuccessText, DetectionDefaults.DefaultSuccessText);
+    [JsonIgnore] public string EffectiveWin1 => Resolve(Win1DetectText, Def.Win1DetectText);
+    [JsonIgnore] public string EffectiveWin2 => Resolve(Win2DetectText, Def.Win2DetectText);
+    [JsonIgnore] public string EffectiveWin3 => Resolve(Win3FailText, Def.Win3FailText);
+    [JsonIgnore] public string EffectiveWin3Review => Resolve(Win3SuccText, Def.Win3SuccessText);
+    [JsonIgnore] public string EffectiveActivateButton => Resolve(ActivateButtonText, Def.ActivateButtonText);
+    [JsonIgnore] public string EffectiveSuccess => Resolve(SuccessText, Def.SuccessText);
+    [JsonIgnore] public string EffectiveContinueButton => Resolve(ContinueButtonText, Def.ContinueButtonText);
+    [JsonIgnore] public string EffectiveBackButton => Resolve(BackButtonText, Def.BackButtonText);
 
-    public TimeSpan StepTimeout => TimeSpan.FromSeconds(Math.Max(1, StepTimeoutSeconds));
+    [JsonIgnore] public TimeSpan StepTimeout => TimeSpan.FromSeconds(Math.Max(1, StepTimeoutSeconds));
 
     /// <summary>
-    /// Returns a shallow copy with any text field that equals its default replaced by "".
-    /// Keeps the JSON clean for non-English users — only customised values are stored.
+    /// Ensures all detect-text properties are populated.
+    /// If a property is empty or whitespace, it falls back to LanguagePresets.Fallback defaults.
+    /// </summary>
+    public AutomationConfig EnsureDefaults()
+    {
+        WindowDetectName   = Resolve(WindowDetectName, Def.WindowName);
+        Win1DetectText     = Resolve(Win1DetectText, Def.Win1DetectText);
+        Win2DetectText     = Resolve(Win2DetectText, Def.Win2DetectText);
+        Win3FailText       = Resolve(Win3FailText, Def.Win3FailText);
+        Win3SuccText       = Resolve(Win3SuccText, Def.Win3SuccessText);
+        ActivateButtonText = Resolve(ActivateButtonText, Def.ActivateButtonText);
+        BackButtonText     = Resolve(BackButtonText, Def.BackButtonText);
+        ContinueButtonText = Resolve(ContinueButtonText, Def.ContinueButtonText);
+        SuccessText        = Resolve(SuccessText, Def.SuccessText);
+        return this;
+    }
+
+    /// <summary>
+    /// Ensures defaults are applied before saving or stripping.
     /// </summary>
     public AutomationConfig StripDefaults()
     {
-        static string Keep(string value, string def) =>
-            string.Equals(value?.Trim(), def, StringComparison.OrdinalIgnoreCase) ? "" : value;
-
-        return new AutomationConfig
-        {
-            WindowDetectName    = Keep(WindowDetectName,    DetectionDefaults.DetectWindowName),
-            Win1DetectText      = Keep(Win1DetectText,      DetectionDefaults.DefaultWin1DetectText),
-            Win2DetectText      = Keep(Win2DetectText,      DetectionDefaults.DefaultWin2DetectText),
-            Win3DetectText      = Keep(Win3DetectText,      DetectionDefaults.DefaultWin3DetectText),
-            Win3ReviewText      = Keep(Win3ReviewText,      DetectionDefaults.DefaultWin3ReviewText),
-            ActivateButtonText  = Keep(ActivateButtonText,  DetectionDefaults.DefaultActivateButtonText),
-            BackButtonText      = Keep(BackButtonText,      DetectionDefaults.BackButtonText),
-            ContinueButtonText  = Keep(ContinueButtonText,  DetectionDefaults.ContinueButtonText),
-            SuccessText         = Keep(SuccessText,         DetectionDefaults.DefaultSuccessText),
-
-            // non-text fields copied as-is
-            UseOcr              = UseOcr,
-            InputOffsetX        = InputOffsetX,
-            InputOffsetY        = InputOffsetY,
-            InputMethod         = InputMethod,
-            InputProbeShift     = InputProbeShift,
-            StopOnFirstSuccess  = StopOnFirstSuccess,
-            ContinueTestingAll  = ContinueTestingAll,
-            StepTimeoutSeconds  = StepTimeoutSeconds,
-            PollIntervalMs      = PollIntervalMs,
-            DetectRetries       = DetectRetries,
-            DetectRetryDelayMs  = DetectRetryDelayMs,
-            VerifySeconds       = VerifySeconds,
-            BetweenCasesDelayMs = BetweenCasesDelayMs,
-        };
+        return EnsureDefaults();
     }
 
     private static string Resolve(string value, string fallback) =>

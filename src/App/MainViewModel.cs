@@ -21,12 +21,17 @@ public sealed class MainViewModel : ObservableObject
 
     public MainViewModel()
     {
-        var cfg = SettingsStore.Load();
+        var cfg = SettingsStore.Load(out var settingsLogs);
+        foreach (var entry in settingsLogs)
+        {
+            Log.Add(entry);
+        }
+
         _windowDetectName = cfg.WindowDetectName;
         _win1 = cfg.Win1DetectText;
         _win2 = cfg.Win2DetectText;
-        _win3 = cfg.Win3DetectText;
-        _win3Review = cfg.Win3ReviewText;
+        _win3 = cfg.Win3FailText;
+        _win3Review = cfg.Win3SuccText;
         _activateButtonText = cfg.ActivateButtonText;
         _backButtonText = cfg.BackButtonText;
         _continueButtonText = cfg.ContinueButtonText;
@@ -39,6 +44,12 @@ public sealed class MainViewModel : ObservableObject
         _detectRetryDelayMs = cfg.DetectRetryDelayMs;
         _verifySeconds = cfg.VerifySeconds;
         _inputProbeShift = cfg.InputProbeShift;
+        _useCustomPastePosition = cfg.UseCustomPastePosition;
+        _skipPasteVerify = cfg.SkipPasteVerify;
+        _customPastePositionText = PasteGeometry.Format(cfg.CustomPasteDx, cfg.CustomPasteDy);
+        _rememberedPasteDx = cfg.RememberedPasteDx;
+        _rememberedPasteDy = cfg.RememberedPasteDy;
+        _rememberedPasteMachine = cfg.RememberedPasteMachine;
 
         StartCommand = new RelayCommand(OnStart, () => !IsRunning && SelectedWindow != null);
         PauseCommand = new RelayCommand(OnPauseToggle, () => IsRunning);
@@ -46,7 +57,10 @@ public sealed class MainViewModel : ObservableObject
         RefreshCommand = new RelayCommand(RefreshWindows, () => !IsRunning);
         ExportCommand = new RelayCommand(OnExport, () => Results.Count > 0 && !IsRunning);
         DumpUiaCommand = new RelayCommand(OnDumpUia, () => SelectedWindow != null);
+        OcrTextCommand = new RelayCommand(OnOcrText, () => SelectedWindow != null);
         ClearInputCommand = new RelayCommand(() => InputText = "", () => !IsRunning);
+        ApplyLanguageCommand = new RelayCommand(OnApplyLanguage, () => !IsRunning && SelectedLanguage != null);
+        SetCustomPasteCommand = new RelayCommand(OnSetCustomPaste, () => !IsRunning && SelectedWindow != null);
         RetryStepCommand = new RelayCommand(() => Decide(StepDecision.Retry));
         ContinueStepCommand = new RelayCommand(() => Decide(StepDecision.Continue));
         AbortStepCommand = new RelayCommand(() => Decide(StepDecision.Abort));
@@ -77,7 +91,16 @@ public sealed class MainViewModel : ObservableObject
     private string _windowDetectName;
     public string WindowDetectName { get => _windowDetectName; set => Set(ref _windowDetectName, value); }
 
-    public string WindowDetectDefault => DetectionDefaults.DetectWindowName;
+    public string WindowDetectDefault => LanguagePresets.Fallback.WindowName;
+
+    // --- language presets --------------------------------------------------
+
+    /// <summary>Built-in detect-text sets offered in the language dropdown.</summary>
+    public IReadOnlyList<LanguagePreset> Languages { get; } = LanguagePresets.All;
+
+    /// <summary>Null until the user picks one, so the dropdown starts empty.</summary>
+    private LanguagePreset? _selectedLanguage;
+    public LanguagePreset? SelectedLanguage { get => _selectedLanguage; set => Set(ref _selectedLanguage, value); }
 
     // --- detect-text fields ------------------------------------------------
 
@@ -106,17 +129,43 @@ public sealed class MainViewModel : ObservableObject
     public string SuccessText { get => _successText; set => Set(ref _successText, value); }
 
     // placeholder hints showing the hardcoded defaults
-    public string Win1Default => DetectionDefaults.DefaultWin1DetectText;
-    public string Win2Default => DetectionDefaults.DefaultWin2DetectText;
-    public string Win3Default => DetectionDefaults.DefaultWin3DetectText;
+    public string Win1Default => LanguagePresets.Fallback.Win1DetectText;
+    public string Win2Default => LanguagePresets.Fallback.Win2DetectText;
+    public string Win3Default => LanguagePresets.Fallback.Win3FailText;
 
     // --- options -----------------------------------------------------------
 
     private bool _stopOnFirstSuccess;
-    public bool StopOnFirstSuccess { get => _stopOnFirstSuccess; set => Set(ref _stopOnFirstSuccess, value); }
+    public bool StopOnFirstSuccess
+    {
+        get => _stopOnFirstSuccess;
+        set
+        {
+            if (Set(ref _stopOnFirstSuccess, value))
+            {
+                if (value)
+                    ContinueTestingAll = false;
+                else if (!ContinueTestingAll)
+                    ContinueTestingAll = true;
+            }
+        }
+    }
 
     private bool _continueTestingAll;
-    public bool ContinueTestingAll { get => _continueTestingAll; set => Set(ref _continueTestingAll, value); }
+    public bool ContinueTestingAll
+    {
+        get => _continueTestingAll;
+        set
+        {
+            if (Set(ref _continueTestingAll, value))
+            {
+                if (value)
+                    StopOnFirstSuccess = false;
+                else if (!StopOnFirstSuccess)
+                    StopOnFirstSuccess = true;
+            }
+        }
+    }
 
     private int _stepTimeoutSeconds;
     public int StepTimeoutSeconds { get => _stepTimeoutSeconds; set => Set(ref _stepTimeoutSeconds, value); }
@@ -135,6 +184,25 @@ public sealed class MainViewModel : ObservableObject
 
     private bool _inputProbeShift;
     public bool InputProbeShift { get => _inputProbeShift; set => Set(ref _inputProbeShift, value); }
+
+    // --- custom paste position ---------------------------------------------
+
+    private bool _useCustomPastePosition;
+    public bool UseCustomPastePosition { get => _useCustomPastePosition; set => Set(ref _useCustomPastePosition, value); }
+
+    /// <summary>Click the saved position and continue without OCR-verifying the paste.</summary>
+    private bool _skipPasteVerify;
+    public bool SkipPasteVerify { get => _skipPasteVerify; set => Set(ref _skipPasteVerify, value); }
+
+    /// <summary>The offset as editable "dx,dy" text; parsed in <see cref="BuildConfig"/>.</summary>
+    private string _customPastePositionText;
+    public string CustomPastePositionText { get => _customPastePositionText; set => Set(ref _customPastePositionText, value); }
+
+    // The scan-learned position. Not user-editable — round-tripped through
+    // settings.json so the driver itself never touches the disk.
+    private int? _rememberedPasteDx;
+    private int? _rememberedPasteDy;
+    private string _rememberedPasteMachine = "";
 
     private string _inputText = "";
     public string InputText { get => _inputText; set => Set(ref _inputText, value); }
@@ -209,7 +277,10 @@ public sealed class MainViewModel : ObservableObject
     public ICommand RefreshCommand { get; }
     public ICommand ExportCommand { get; }
     public ICommand DumpUiaCommand { get; }
+    public ICommand OcrTextCommand { get; }
     public ICommand ClearInputCommand { get; }
+    public ICommand ApplyLanguageCommand { get; }
+    public ICommand SetCustomPasteCommand { get; }
     public ICommand RetryStepCommand { get; }
     public ICommand ContinueStepCommand { get; }
     public ICommand AbortStepCommand { get; }
@@ -236,28 +307,130 @@ public sealed class MainViewModel : ObservableObject
         SelectedWindow = reselect ?? Windows.FirstOrDefault();
     }
 
-    private AutomationConfig BuildConfig() => new()
+    /// <summary>
+    /// Overwrites every detect-text field from the selected language preset.
+    /// The window name is deliberately left alone: it is matched against the live
+    /// window list, not the target app's own UI text.
+    /// </summary>
+    private void OnApplyLanguage()
     {
-        WindowDetectName = WindowDetectName,
-        Win1DetectText = Win1Text,
-        Win2DetectText = Win2Text,
-        Win3DetectText = Win3Text,
-        Win3ReviewText = Win3ReviewText,
-        ActivateButtonText = ActivateButtonText,
-        BackButtonText = BackButtonText,
-        ContinueButtonText = ContinueButtonText,
-        SuccessText = SuccessText,
-        StopOnFirstSuccess = StopOnFirstSuccess,
-        ContinueTestingAll = ContinueTestingAll,
-        StepTimeoutSeconds = StepTimeoutSeconds,
-        BetweenCasesDelayMs = BetweenCasesDelayMs,
-        UseOcr = true,
-        DetectRetries = DetectRetries,
-        DetectRetryDelayMs = DetectRetryDelayMs,
-        VerifySeconds = VerifySeconds,
-        InputMethod = InputMethod.PasteButton,
-        InputProbeShift = InputProbeShift,
-    };
+        if (SelectedLanguage is not { } preset)
+            return;
+
+        Win1Text = preset.Win1DetectText;
+        Win2Text = preset.Win2DetectText;
+        Win3Text = preset.Win3FailText;
+        Win3ReviewText = preset.Win3SuccessText;
+        ContinueButtonText = preset.ContinueButtonText;
+        ActivateButtonText = preset.ActivateButtonText;
+        BackButtonText = preset.BackButtonText;
+
+        StatusText = $"Detect texts filled from the {preset.Code} preset.";
+    }
+
+    /// <summary>
+    /// Lets the user point at the Paste button. Locates the Win2 label first —
+    /// offsets are stored relative to it, so without that anchor there is nothing
+    /// to measure from and the target app must be on its Paste Key screen.
+    /// </summary>
+    private async void OnSetCustomPaste()
+    {
+        var target = SelectedWindow;
+        if (target is null)
+        {
+            StatusText = "Select a target window first.";
+            return;
+        }
+
+        var win2 = (Win2Text?.Trim() is { Length: > 0 } t) ? t : Win2Default;
+
+        StatusText = $"Looking for '{win2}' on screen…";
+        var label = await RunOnStaThreadAsync(() =>
+        {
+            _ocr.InvalidateCache();
+            return _ocr.FindTextLine(target, win2);
+        });
+
+        if (label is not { } anchor)
+        {
+            StatusText = "Could not find the input screen.";
+            MessageBox.Show(
+                $"Could not find \"{win2}\" on the target window.\n\n" +
+                "Open the Paste Key screen in the target app first, then press Set again.",
+                "Input Screen Not Found",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var picker = new PastePickerWindow(anchor, _ocr.InputOffsetX, _ocr.InputOffsetY)
+        {
+            Owner = Application.Current?.MainWindow,
+        };
+
+        if (picker.ShowDialog() == true && picker.Picked is (int dx, int dy))
+        {
+            CustomPastePositionText = PasteGeometry.Format(dx, dy);
+            UseCustomPastePosition = true;
+            var (bx, by) = PasteGeometry.BasePoint(anchor, _ocr.InputOffsetX, _ocr.InputOffsetY);
+            Log.Add(LogEntry.Info(
+                $"Custom paste position set to +{dx}px right, +{dy}px down " +
+                $"(anchor \"{anchor.Text}\", base point {bx},{by})."));
+            StatusText = $"Custom paste position saved: {dx},{dy}";
+            SaveConfig();
+        }
+        else
+        {
+            StatusText = "Paste position pick cancelled.";
+        }
+    }
+
+    public void SaveConfig()
+    {
+        try
+        {
+            var cfg = BuildConfig();
+            SettingsStore.Save(cfg);
+        }
+        catch { /* non-fatal */ }
+    }
+
+    private AutomationConfig BuildConfig()
+    {
+        // An unparseable offset is treated as "not set" rather than silently
+        // becoming (0,0), which would click the input field instead of Paste.
+        var hasOffset = PasteGeometry.TryParse(CustomPastePositionText, out var dx, out var dy);
+
+        return new AutomationConfig
+        {
+            WindowDetectName = WindowDetectName,
+            Win1DetectText = Win1Text,
+            Win2DetectText = Win2Text,
+            Win3FailText = Win3Text,
+            Win3SuccText = Win3ReviewText,
+            ActivateButtonText = ActivateButtonText,
+            BackButtonText = BackButtonText,
+            ContinueButtonText = ContinueButtonText,
+            SuccessText = SuccessText,
+            StopOnFirstSuccess = StopOnFirstSuccess,
+            ContinueTestingAll = ContinueTestingAll,
+            StepTimeoutSeconds = StepTimeoutSeconds,
+            BetweenCasesDelayMs = BetweenCasesDelayMs,
+            UseOcr = true,
+            DetectRetries = DetectRetries,
+            DetectRetryDelayMs = DetectRetryDelayMs,
+            VerifySeconds = VerifySeconds,
+            InputMethod = InputMethod.PasteButton,
+            InputProbeShift = InputProbeShift,
+            UseCustomPastePosition = UseCustomPastePosition && hasOffset,
+            SkipPasteVerify = SkipPasteVerify,
+            CustomPasteDx = dx,
+            CustomPasteDy = dy,
+            RememberedPasteDx = _rememberedPasteDx,
+            RememberedPasteDy = _rememberedPasteDy,
+            RememberedPasteMachine = _rememberedPasteMachine,
+        };
+    }
 
     private static List<string> ParseInputs(string text) =>
         text.Replace("\r\n", "\n").Split('\n')
@@ -320,6 +493,13 @@ public sealed class MainViewModel : ObservableObject
         _ocr.Logger = msg => ((IProgress<LogEntry>)logProgress).Report(LogEntry.Info(msg));
         _ocr.Method = InputMethod.PasteButton;
         _ocr.ShiftProbe = InputProbeShift;
+        _ocr.CustomPasteOffset = cfg.UseCustomPastePosition
+            ? (cfg.CustomPasteDx, cfg.CustomPasteDy)
+            : null;
+        _ocr.SkipPasteVerify = cfg.SkipPasteVerify;
+        // The driver does no file I/O: hand it the persisted position, take back
+        // whatever it learns, and save that through settings.json below.
+        _ocr.SeedRememberedPasteOffset(cfg.RememberedPasteOffset);
 
         // The engine reports results via the shared list; mirror into the bound collection.
         var resultSink = new List<TestResult>();
@@ -352,6 +532,18 @@ public sealed class MainViewModel : ObservableObject
             foreach (var r in resultSink)
                 if (!Results.Contains(r))
                     Results.Add(r);
+
+            // Persist a newly-scanned paste position so the next run can skip the
+            // scan. Stamped with the machine name because %AppData% roams.
+            if (_ocr.LearnedPasteOffset is (int ldx, int ldy)
+                && (_rememberedPasteDx != ldx || _rememberedPasteDy != ldy))
+            {
+                _rememberedPasteDx = ldx;
+                _rememberedPasteDy = ldy;
+                _rememberedPasteMachine = Environment.MachineName;
+                SettingsStore.Save(BuildConfig());
+            }
+
             IsRunning = false;
             IsPaused = false;
             IsAwaitingDecision = false;
@@ -397,6 +589,15 @@ public sealed class MainViewModel : ObservableObject
         {
             Log.Add(LogEntry.Info($"--- UIA dump: {target.Title} ---"));
             StatusText = "Dumping UIA tree…";
+
+            // Save the exact bitmap OCR works from. If text is visible on screen but
+            // absent from this PNG, the capture is at fault, not the recognition.
+            var shot = await RunOnStaThreadAsync(() =>
+                ScreenCapture.SaveDebugCapture(target.Handle, SettingsStore.CapturePath));
+            Log.Add(shot is null
+                ? LogEntry.Error("Could not save the OCR capture.")
+                : LogEntry.Info($"OCR capture ({ScreenCapture.LastMethod}) saved: {shot}"));
+
             var elements = await RunOnStaThreadAsync(() => _driver.DumpVisibleElements(target));
 
             if (elements.Count == 0)
@@ -432,6 +633,17 @@ public sealed class MainViewModel : ObservableObject
             Log.Add(LogEntry.Error($"Dump failed: {ex}"));
             StatusText = "Dump failed.";
         }
+    }
+
+    private void OnOcrText()
+    {
+        if (SelectedWindow is not { } target)
+            return;
+
+        new OcrDebugWindow(target)
+        {
+            Owner = Application.Current.MainWindow
+        }.Show();
     }
 
     /// <summary>

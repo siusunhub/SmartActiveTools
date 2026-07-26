@@ -1,0 +1,35 @@
+<Window x:Class="InputAutomationTool.App.PastePickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pick Paste Position"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        AllowsTransparency="True" Background="#01000000" Topmost="True"
+        Cursor="Cross">
+
+    <!-- Canvas coordinates are DIPs; screen pixels are converted via PointFromScreen. -->
+    <Canvas x:Name="Root">
+
+        <!-- Red box over the Win2 label that offsets are measured from -->
+        <Rectangle x:Name="LabelBox" Stroke="Red" StrokeThickness="2" IsHitTestVisible="False" />
+
+        <!-- Instruction above the red box -->
+        <Border x:Name="Prompt" Background="#CC000000" CornerRadius="3" Padding="8,3"
+                IsHitTestVisible="False">
+            <TextBlock Text="Click the paste icon" Foreground="White"
+                       FontWeight="Bold" FontSize="13" />
+        </Border>
+
+        <!-- Live offset readout, pinned to the top-right of the cursor -->
+        <Border x:Name="Readout" Background="#EEFFFFE1" BorderBrush="#888" BorderThickness="1"
+                CornerRadius="2" Padding="5,2" IsHitTestVisible="False">
+            <TextBlock x:Name="ReadoutText" FontFamily="Consolas" FontSize="12" Foreground="Black" />
+        </Border>
+
+        <!-- Hint bar -->
+        <Border x:Name="HintBar" Background="#CC000000" CornerRadius="3" Padding="10,4"
+                IsHitTestVisible="False">
+            <TextBlock Foreground="#DDD" FontSize="12"
+                       Text="Left-click the Paste icon to save its position  ·  Esc to cancel" />
+        </Border>
+    </Canvas>
+</Window>

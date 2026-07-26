@@ -105,7 +105,7 @@ public sealed class AutomationEngine(IScreenDriver driver)
             screen = await DetectScreenAsync(target, cfg, log, ct).ConfigureAwait(false);
             if (screen == Screen.Result)
             {
-                var back = _driver.FindButton(target, cfg.BackButtonText);
+                var back = _driver.FindButton(target, cfg.EffectiveBackButton);
                 if (back != null)
                 {
                     await _driver.InvokeAsync(back, ct).ConfigureAwait(false);
@@ -152,12 +152,12 @@ public sealed class AutomationEngine(IScreenDriver driver)
             log, ct).ConfigureAwait(false);
 
         UiElement? continueBtn = null;
-        await StepAsync($"Find '{cfg.ContinueButtonText}' button",
-            async () => (continueBtn = await WaitForButtonAsync(target, cfg.ContinueButtonText, cfg, log, ct)) != null,
+        await StepAsync($"Find '{cfg.EffectiveContinueButton}' button",
+            async () => (continueBtn = await WaitForButtonAsync(target, cfg.EffectiveContinueButton, cfg, log, ct)) != null,
             log, ct).ConfigureAwait(false);
 
-        await StepAsync($"Find '{cfg.BackButtonText}' button",
-            async () => await WaitForButtonAsync(target, cfg.BackButtonText, cfg, log, ct) != null,
+        await StepAsync($"Find '{cfg.EffectiveBackButton}' button",
+            async () => await WaitForButtonAsync(target, cfg.EffectiveBackButton, cfg, log, ct) != null,
             log, ct).ConfigureAwait(false);
 
         var textbox = win2 is null ? null : _driver.FindInputNear(target, win2);
@@ -175,7 +175,7 @@ public sealed class AutomationEngine(IScreenDriver driver)
 
         // 5. Submit.
         if (continueBtn != null)
-            await StepAsync($"Click '{cfg.ContinueButtonText}'",
+            await StepAsync($"Click '{cfg.EffectiveContinueButton}'",
                 () => _driver.InvokeAsync(continueBtn, ct), log, ct).ConfigureAwait(false);
 
         // 6. Wait for verification and read the result screen.
@@ -191,7 +191,7 @@ public sealed class AutomationEngine(IScreenDriver driver)
         if (outcome == Outcome.Fail)
         {
             log.Report(LogEntry.Fail($"Detected result: {cfg.EffectiveWin3}"));
-            var back = _driver.FindButton(target, cfg.BackButtonText);
+            var back = _driver.FindButton(target, cfg.EffectiveBackButton);
             if (back != null)
                 await _driver.InvokeAsync(back, ct).ConfigureAwait(false);
             // Return to the Win1 screen so the next case can start cleanly.
@@ -293,7 +293,7 @@ public sealed class AutomationEngine(IScreenDriver driver)
 
             if (_driver.TryFindText(target, cfg.EffectiveWin3) != null)
             {
-                var hasBack = _driver.FindButton(target, cfg.BackButtonText) != null;
+                var hasBack = _driver.FindButton(target, cfg.EffectiveBackButton) != null;
                 return (Outcome.Fail, hasBack ? $"matched '{cfg.EffectiveWin3}'" : $"matched '{cfg.EffectiveWin3}' (no Back button)");
             }
 

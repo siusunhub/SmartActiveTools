@@ -12,10 +12,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title += " v0.2";
         DataContext = _vm;
 
         // Auto-scroll the log to the newest entry.
         _vm.Log.CollectionChanged += OnLogChanged;
+
+        Closing += (_, _) => _vm.SaveConfig();
     }
 
     private void OnLogChanged(object? sender, NotifyCollectionChangedEventArgs e)

@@ -1,6 +1,4 @@
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 
 namespace InputAutomationTool.Core;
 
@@ -41,6 +39,20 @@ public sealed class OcrScreenDriver : IScreenDriver
     public int InputOffsetX { get; set; }
     public int InputOffsetY { get; set; }
 
+    /// <summary>
+    /// A hand-picked Paste button offset to try before any automatic strategy.
+    /// Null restores the original behaviour (remembered position, then 2-D scan).
+    /// </summary>
+    public (int Dx, int Dy)? CustomPasteOffset { get; set; }
+
+    /// <summary>
+    /// Click the known Paste position and move straight on, without OCR-confirming
+    /// that the value appeared. Faster and immune to OCR misreads, but it cannot
+    /// detect a missed click — so it only applies when a position is already known
+    /// (custom or remembered); a blind scan would "succeed" on its first probe.
+    /// </summary>
+    public bool SkipPasteVerify { get; set; }
+
     /// <summary>How text is entered into the focused field.</summary>
     public InputMethod Method { get; set; } = InputMethod.Paste;
 
@@ -75,7 +87,17 @@ public sealed class OcrScreenDriver : IScreenDriver
 
     public void InvalidateCache() => _cacheTime = DateTime.MinValue;
 
-    public UiElement? TryFindText(TargetWindow window, string textContains)
+    public UiElement? TryFindText(TargetWindow window, string textContains) =>
+        FindTextLine(window, textContains) is { } l
+            ? new UiElement { Name = l.Text, ControlType = "ocr.text", Native = l }
+            : null;
+
+    /// <summary>
+    /// Same match as <see cref="TryFindText"/> but returns the OCR line itself,
+    /// including its screen rectangle. Public so the UI's paste-position picker
+    /// can draw over exactly the line the engine would have matched.
+    /// </summary>
+    public OcrLine? FindTextLine(TargetWindow window, string textContains)
     {
         if (string.IsNullOrWhiteSpace(textContains))
             return null;
@@ -100,10 +122,7 @@ public sealed class OcrScreenDriver : IScreenDriver
         // Reject if the best match is much longer than the needle — it merely contains
         // the needle as a substring (e.g. "use a purchased activation key" should NOT
         // match a search for "Activation key" because FullDistance 16 > needle length 14).
-        // Reject if the best candidate is much longer than the needle.
-        return best is { } l && bestRank <= textContains.Length
-            ? new UiElement { Name = l.Text, ControlType = "ocr.text", Native = l }
-            : null;
+        return best is { } l && bestRank <= textContains.Length ? l : null;
     }
 
     // OCR cannot tell a button from a label, so a "button" is just matching text.
@@ -137,76 +156,41 @@ public sealed class OcrScreenDriver : IScreenDriver
         return Task.FromResult(true);
     }
 
-    // Vertical probe (find the input field by typing).
-    private const int ProbeRightPx = 50;   // start this far right of the label
-    private const int ProbeStepPx = 10;    // step down this much each attempt
+    // Vertical probe (find the input field by typing). The offsets that define the
+    // paste coordinate frame live in PasteGeometry, shared with the UI picker.
+    private const int ProbeRightPx = PasteGeometry.ProbeRightPx;
+    private const int ProbeStepPx = PasteGeometry.ProbeStepPx;
     private const int ProbeMaxTries = 5;
 
     // Horizontal + vertical probe (find the on-screen Paste button).
     private const int PasteStepPx = 15;       // step right this much each inner step
-    private const int PasteDownPx = 10;       // initial downward offset from the input field label
+    private const int PasteDownPx = PasteGeometry.PasteDownPx;
     private const int PasteStartStep = 18;    // inner loop starts ~270px right (skip the empty input bar)
     private const int PasteStartOffsetPx = 20;    // extra rightward shift at scan origin
     private const int PasteStartOffsetDownPx = 5; // extra downward shift at scan origin
     private const int PasteScanStepsX = 15;   // inner loop: scan this many steps rightward
     private const int PasteScanStepsY = 5;    // outer loop: try this many rows
     private const int PasteRowShiftPx = 10;   // outer loop: shift down this many px per row
+    private const int PasteVerifyRetryMs = 200; // delay before re-reading the screen
 
-    // Persistent position — loaded from / saved to JSON next to the executable.
-    private static readonly string _configPath =
-        Path.ChangeExtension(
-            Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "config"),
-            ".json");
+    /// <summary>
+    /// The position found by the scan, kept only in memory. The driver does no file
+    /// I/O of its own: the host reads this after a run and persists it in
+    /// settings.json, so there is exactly one config file on disk.
+    /// </summary>
+    public (int Dx, int Dy)? LearnedPasteOffset { get; private set; }
+
+    /// <summary>Working copy for this session — seeded from settings, updated by the scan.</summary>
     private (int dx, int dy)? _pasteButtonOffset;
-    private bool _offsetLoaded;
 
-    private sealed class PastePositionConfig
+    /// <summary>
+    /// Seeds the remembered position from persisted settings. Passing null (or a
+    /// position that later fails OCR verification) leaves the driver to scan.
+    /// </summary>
+    public void SeedRememberedPasteOffset((int Dx, int Dy)? offset)
     {
-        public string MachineName { get; set; } = "";
-        public int Dx { get; set; }
-        public int Dy { get; set; }
-    }
-
-    private void EnsureOffsetLoaded()
-    {
-        if (_offsetLoaded) return;
-        _offsetLoaded = true;
-        try
-        {
-            if (!File.Exists(_configPath)) return;
-            var cfg = JsonSerializer.Deserialize<PastePositionConfig>(File.ReadAllText(_configPath));
-            if (cfg == null) return;
-
-            if (!string.Equals(cfg.MachineName, Environment.MachineName, StringComparison.OrdinalIgnoreCase))
-            {
-                Logger?.Invoke($"Config machine '{cfg.MachineName}' ≠ this machine '{Environment.MachineName}' — ignoring saved position.");
-                return;
-            }
-
-            _pasteButtonOffset = (cfg.Dx, cfg.Dy);
-            Logger?.Invoke($"Loaded paste position from config: +{cfg.Dx}px right, +{cfg.Dy}px down.");
-        }
-        catch { /* corrupt file — ignore, will re-scan */ }
-    }
-
-    private void SaveOffsetToFile(int dx, int dy)
-    {
-        try
-        {
-            File.WriteAllText(_configPath,
-                JsonSerializer.Serialize(
-                    new PastePositionConfig { MachineName = Environment.MachineName, Dx = dx, Dy = dy },
-                    new JsonSerializerOptions { WriteIndented = true }));
-            Logger?.Invoke($"Paste position saved to config (machine: {Environment.MachineName}).");
-        }
-        catch { /* non-critical */ }
-    }
-
-    private void ClearOffsetFile()
-    {
-        _pasteButtonOffset = null;
-        _offsetLoaded = true; // don't try to re-load a file we just invalidated
-        try { if (File.Exists(_configPath)) File.Delete(_configPath); } catch { }
+        _pasteButtonOffset = offset is (int dx, int dy) ? (dx, dy) : null;
+        LearnedPasteOffset = null;
     }
 
     public Task<bool> SetTextAsync(UiElement element, string value, CancellationToken ct)
@@ -247,9 +231,8 @@ public sealed class OcrScreenDriver : IScreenDriver
         // by clicking rightward (mouse only — no keyboard needed).
         if (Method == InputMethod.PasteButton)
         {
-            var fieldX = (int)Math.Round(baseX);
-            var fieldY = (int)Math.Round(baseY + ProbeStepPx + PasteDownPx);
-            return ClickPasteButton(hwnd, fieldX, fieldY, value, ct);
+            var (fieldX, fieldY) = PasteGeometry.BasePoint(label, InputOffsetX, InputOffsetY);
+            return ClickPasteButton(hwnd, fieldX, fieldY, label, value, ct);
         }
 
         var tries = ShiftProbe ? ProbeMaxTries : 1;
@@ -307,7 +290,7 @@ public sealed class OcrScreenDriver : IScreenDriver
     /// clicks rightward in <see cref="PasteStepPx"/> steps until OCR confirms the
     /// text was pasted. The winning offset is cached so later cases skip the scan.
     /// </summary>
-    private bool ClickPasteButton(nint hwnd, int baseX, int baseY, string value, CancellationToken ct)
+    private bool ClickPasteButton(nint hwnd, int baseX, int baseY, OcrLine label, string value, CancellationToken ct)
     {
         // 1. Copy the text to the clipboard once.
         SetClipboardText(value);
@@ -316,9 +299,39 @@ public sealed class OcrScreenDriver : IScreenDriver
             ? $"Clipboard set OK (\"{readback}\")."
             : $"!! Clipboard readback mismatch: \"{readback}\".");
 
-        // Load the remembered position from file the first time this session.
-        EnsureOffsetLoaded();
         var start = DateTime.UtcNow;
+
+        // 1a. Verification disabled: click the known position and trust it. Only
+        // valid with a known offset — without one there is nothing to click but a
+        // guess, and an unverified guess would report success from the first probe.
+        if (SkipPasteVerify)
+        {
+            var known = CustomPasteOffset ?? _pasteButtonOffset;
+            if (known is (int sx, int sy))
+            {
+                Logger?.Invoke($"Clicking paste at +{sx}px right, +{sy}px down (success check skipped).");
+                ClickAt(hwnd, baseX + sx, baseY + sy);
+                Thread.Sleep(PasteVerifyRetryMs);
+                InvalidateCache();
+                return true;
+            }
+
+            Logger?.Invoke("!! 'Skip Paste Success check' needs a known paste position — "
+                         + "set a Custom Paste Icon Position first. Verifying this run instead.");
+        }
+
+        // 1b. A position the user picked by hand wins over anything learned
+        // automatically. It is still OCR-verified, so a stale pick (window moved
+        // to a different scale) falls through to the strategies below rather than
+        // silently pasting nowhere.
+        if (CustomPasteOffset is (int ux, int uy))
+        {
+            Logger?.Invoke($"Trying custom paste position +{ux}px right, +{uy}px down…");
+            if (TryPasteAt(hwnd, baseX + ux, baseY + uy, label, value, ux, uy, start, verbose: true))
+                return true;
+
+            Logger?.Invoke("Custom position failed — falling back to the remembered position / scan.");
+        }
 
         // Try the remembered position (from a previous run's saved config or
         // from earlier in this session). Verify with OCR — if the text doesn't
@@ -326,11 +339,11 @@ public sealed class OcrScreenDriver : IScreenDriver
         if (_pasteButtonOffset is (int cdx, int cdy))
         {
             Logger?.Invoke($"Trying remembered paste position +{cdx}px right, +{cdy}px down…");
-            if (TryPasteAt(hwnd, baseX + cdx, baseY + cdy, value, cdx, cdy, start))
+            if (TryPasteAt(hwnd, baseX + cdx, baseY + cdy, label, value, cdx, cdy, start, verbose: true))
                 return true;
 
-            Logger?.Invoke("Remembered position failed — clearing config and re-scanning…");
-            ClearOffsetFile();
+            Logger?.Invoke("Remembered position failed — discarding it and re-scanning…");
+            _pasteButtonOffset = null;
         }
 
         // 2-D scan: outer loop shifts down (handles different screen scales /
@@ -344,10 +357,11 @@ public sealed class OcrScreenDriver : IScreenDriver
                 ct.ThrowIfCancellationRequested();
                 int dx = PasteStepPx * (PasteStartStep + col) + PasteStartOffsetPx;
                 int ady = dy + PasteStartOffsetDownPx;
-                if (TryPasteAt(hwnd, baseX + dx, baseY + ady, value, dx, ady, start))
+                if (TryPasteAt(hwnd, baseX + dx, baseY + ady, label, value, dx, ady, start))
                 {
                     _pasteButtonOffset = (dx, ady);
-                    SaveOffsetToFile(dx, ady);
+                    LearnedPasteOffset = (dx, ady);
+                    Logger?.Invoke($"Paste position learned: {PasteGeometry.Format(dx, ady)} (saved with settings).");
                     return true;
                 }
             }
@@ -358,18 +372,92 @@ public sealed class OcrScreenDriver : IScreenDriver
         return false;
     }
 
-    private bool TryPasteAt(nint hwnd, int x, int y, string value, int dx, int dy, DateTime start)
+    /// <summary>
+    /// Clicks a candidate point and confirms via OCR that the value appeared.
+    /// <paramref name="verbose"/> additionally logs the text OCR actually read —
+    /// only worth it for the handful of known-position attempts, not for all 75
+    /// scan probes.
+    /// </summary>
+    private bool TryPasteAt(
+        nint hwnd, int x, int y, OcrLine label, string value, int dx, int dy, DateTime start, bool verbose = false)
     {
         ClickAt(hwnd, x, y);
         Thread.Sleep(120);
-        var lines = OcrTextReader.ReadAsync(hwnd).GetAwaiter().GetResult();
-        var hit = lines.Any(ln => FuzzyMatch.Contains(ln.Text, value));
+        var activationKeyX = (int)Math.Round(label.CenterX);
+        var checks = ReadPasteChecks(hwnd, label, activationKeyX, y, value);
+        var successful = checks.FirstOrDefault(check => check.Match.IsMatch);
+        var best = checks.OrderByDescending(check => check.Match.Matched).First();
+        var selected = successful ?? best;
+        var match = selected.Match;
+
         var ms = (int)(DateTime.UtcNow - start).TotalMilliseconds;
-        Logger?.Invoke($"Paste probe: +{dx}px right +{dy}px down, {ms}ms → {(hit ? "PASTED ✓" : "nothing")}");
-        if (hit)
+        var verdict = match.IsMatch ? $"PASTED ✓ ({match})"
+                    : match.Matched > 0 ? $"partial ({match})"
+                    : "nothing";
+
+        // Per-chunk verdicts make a miss self-explaining: which groups of the key
+        // OCR could and could not read back off the screen.
+        var detail = match.Detail is { Length: > 0 } d ? $"  [{d}]" : "";
+        Logger?.Invoke($"Paste probe: +{dx}px right +{dy}px down, {ms}ms → {verdict}{detail}");
+
+        foreach (var check in checks)
+            Logger?.Invoke($"   {check.Name}: {check.Match}");
+
+        if (!match.IsMatch && verbose)
+            foreach (var check in checks)
+                Logger?.Invoke($"   {check.Name} OCR: {Trim(check.Seen)}");
+
+        if (match.IsMatch)
             InvalidateCache();
-        return hit;
+        return match.IsMatch;
+
+        static string Trim(string s) =>
+            string.IsNullOrWhiteSpace(s) ? "(nothing at all)"
+            : s.Length <= 220 ? s
+            : s[..220] + "…";
     }
+
+    /// <summary>
+    /// Runs the four tested verification variants: normal and enhanced crop
+    /// immediately after Paste, then the same two after focusing the input field.
+    /// One exact four-character key group is enough for <see cref="FuzzyMatch.MatchChunks"/>
+    /// to confirm the paste.
+    /// </summary>
+    private IReadOnlyList<PasteOcrCheck> ReadPasteChecks(
+        nint hwnd, OcrLine label, int activationKeyX, int activationKeyY, string value)
+    {
+        var checks = new List<PasteOcrCheck>();
+        AddChecks("after Paste");
+
+        ClickAt(hwnd, activationKeyX, activationKeyY);
+        Thread.Sleep(120);
+        AddChecks("after input focus");
+        return checks;
+
+        void AddChecks(string phase)
+        {
+            using var capture = ScreenCapture.CaptureWindow(hwnd, out var originX, out var originY);
+            if (capture is null)
+            {
+                checks.Add(new PasteOcrCheck($"{phase} normal", default, "(capture failed)"));
+                checks.Add(new PasteOcrCheck($"{phase} enhanced", default, "(capture failed)"));
+                return;
+            }
+
+            using var crop = OcrImageProcessing.CropInputText(capture, label, originX, originY, out _);
+            using var enhanced = OcrImageProcessing.EnhanceForOcr(crop);
+            Add("normal", OcrTextReader.ReadBitmapAsync(crop, originX, originY).GetAwaiter().GetResult());
+            Add("enhanced", OcrTextReader.ReadBitmapAsync(enhanced, originX, originY).GetAwaiter().GetResult());
+
+            void Add(string kind, IReadOnlyList<OcrLine> lines)
+            {
+                var seen = string.Join(" | ", lines.Select(line => line.Text));
+                checks.Add(new PasteOcrCheck($"{phase} {kind}", FuzzyMatch.MatchChunks(seen, value), seen));
+            }
+        }
+    }
+
+    private sealed record PasteOcrCheck(string Name, FuzzyMatch.ChunkMatch Match, string Seen);
 
     public IReadOnlyList<string> DumpVisibleElements(TargetWindow window)
     {

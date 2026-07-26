@@ -10,6 +10,7 @@
     <RootNamespace>InputAutomationTool.App</RootNamespace>
     <AssemblyName>InputAutomationTool</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

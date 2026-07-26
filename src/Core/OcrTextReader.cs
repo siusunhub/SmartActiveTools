@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -35,7 +36,14 @@ public static class OcrTextReader
             return [];
         }
 
-        diagnostics?.Add($"[ocr] Captured {bmp.Width}x{bmp.Height} px at screen ({ox},{oy}).");
+        return await ReadBitmapAsync(bmp, ox, oy, diagnostics);
+    }
+
+    /// <summary>Recognizes an already captured bitmap without capturing the screen again.</summary>
+    public static async Task<IReadOnlyList<OcrLine>> ReadBitmapAsync(
+        Bitmap bmp, int originX = 0, int originY = 0, IList<string>? diagnostics = null)
+    {
+        diagnostics?.Add($"[ocr] Bitmap {bmp.Width}x{bmp.Height} px at screen ({originX},{originY}) via {ScreenCapture.LastMethod}.");
         if (ScreenCapture.LooksBlank(bmp))
             diagnostics?.Add("[ocr] !! Captured image looks blank — app likely blocks screen capture (DirectX/protected).");
 
@@ -73,7 +81,7 @@ public static class OcrTextReader
                 maxY = Math.Max(maxY, r.Y + r.Height);
             }
             if (minX == double.MaxValue) continue;
-            lines.Add(new OcrLine(line.Text, ox + minX, oy + minY, maxX - minX, maxY - minY));
+            lines.Add(new OcrLine(line.Text, originX + minX, originY + minY, maxX - minX, maxY - minY));
         }
 
         diagnostics?.Add($"[ocr] Recognized {lines.Count} line(s).");
