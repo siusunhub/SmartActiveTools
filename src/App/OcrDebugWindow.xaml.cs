@@ -2,9 +2,9 @@ using System.IO;
 using System.Windows;
 using System.Drawing;
 using System.Drawing.Imaging;
-using InputAutomationTool.Core;
+using SmartActiveTools.Core;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 public partial class OcrDebugWindow : Window
 {

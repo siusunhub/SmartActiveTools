@@ -2,13 +2,13 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 public partial class App : Application
 {
     private static readonly string CrashLogPath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                     "InputAutomationTool", "crash.log");
+                     "SmartActiveTools", "crash.log");
 
     protected override void OnStartup(StartupEventArgs e)
     {

@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>Shared crop and enhancement pipeline for input-field OCR.</summary>
 public static class OcrImageProcessing

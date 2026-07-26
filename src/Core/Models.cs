@@ -1,4 +1,4 @@
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 public enum LogLevel { Info, Success, Fail, Error }
 

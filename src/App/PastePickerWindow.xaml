@@ -1,4 +1,4 @@
-<Window x:Class="InputAutomationTool.App.PastePickerWindow"
+<Window x:Class="SmartActiveTools.App.PastePickerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Pick Paste Position"

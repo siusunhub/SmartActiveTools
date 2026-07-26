@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
 
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>
 /// UI Automation implementation of <see cref="IScreenDriver"/>. Reads the target

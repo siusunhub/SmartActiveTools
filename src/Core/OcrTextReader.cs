@@ -5,7 +5,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
 
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>One recognized line of text and its bounding box in SCREEN coordinates.</summary>
 public readonly record struct OcrLine(string Text, double X, double Y, double Width, double Height)

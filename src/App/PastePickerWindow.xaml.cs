@@ -1,9 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using InputAutomationTool.Core;
+using SmartActiveTools.Core;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 /// <summary>
 /// Full-screen transparent overlay for picking the target app's Paste button by

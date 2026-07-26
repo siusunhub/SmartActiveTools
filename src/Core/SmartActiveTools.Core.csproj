@@ -6,8 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>InputAutomationTool.Core</RootNamespace>
-    <AssemblyName>InputAutomationTool.Core</AssemblyName>
+    <RootNamespace>SmartActiveTools.Core</RootNamespace>
+    <AssemblyName>SmartActiveTools.Core</AssemblyName>
   </PropertyGroup>
 
 </Project>

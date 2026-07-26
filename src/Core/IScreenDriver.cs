@@ -1,4 +1,4 @@
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>
 /// Abstraction over "how we see and drive the target app". The primary

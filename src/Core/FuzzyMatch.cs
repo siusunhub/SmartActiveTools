@@ -1,4 +1,4 @@
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>
 /// Approximate text matching for OCR output. OCR frequently changes case and

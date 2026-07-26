@@ -1,15 +1,15 @@
 using System.IO;
 using System.Text.Json;
-using InputAutomationTool.Core;
+using SmartActiveTools.Core;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 /// <summary>Persists the last-used <see cref="AutomationConfig"/> to app directory or %AppData%.</summary>
 public static class SettingsStore
 {
     private static readonly string AppDataDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                     "InputAutomationTool");
+                     "SmartActiveTools");
 
     private static readonly string AppDataFilePath = Path.Combine(AppDataDir, "settings.json");
 

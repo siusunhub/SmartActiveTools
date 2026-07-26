@@ -1,4 +1,4 @@
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>
 /// Cooperative pause gate. The engine awaits <see cref="WaitWhilePausedAsync"/>

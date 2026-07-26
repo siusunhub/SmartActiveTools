@@ -1,9 +1,9 @@
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
-using InputAutomationTool.Core;
+using SmartActiveTools.Core;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 public partial class MainWindow : Window
 {

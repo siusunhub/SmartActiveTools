@@ -1,9 +1,9 @@
 <Solution>
   <Folder Name="/src/" />
   <Folder Name="/src/App/">
-    <Project Path="src/App/InputAutomationTool.App.csproj" />
+    <Project Path="src/App/SmartActiveTools.App.csproj" />
   </Folder>
   <Folder Name="/src/Core/">
-    <Project Path="src/Core/InputAutomationTool.Core.csproj" />
+    <Project Path="src/Core/SmartActiveTools.Core.csproj" />
   </Folder>
 </Solution>

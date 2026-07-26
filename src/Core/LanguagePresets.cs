@@ -1,4 +1,4 @@
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>
 /// Every language-dependent string for one UI language of the target app.

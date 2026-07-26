@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>
 /// All run settings. Detect-text properties hold the raw UI value; the

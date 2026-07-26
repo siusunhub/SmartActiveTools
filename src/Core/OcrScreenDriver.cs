@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>How OCR-mode enters text into the (invisible-to-OCR) input field.</summary>
 public enum InputMethod

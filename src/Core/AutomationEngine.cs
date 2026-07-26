@@ -1,4 +1,4 @@
-namespace InputAutomationTool.Core;
+namespace SmartActiveTools.Core;
 
 /// <summary>Thrown when a workflow step cannot be completed within its limits.</summary>
 public sealed class StepException(string message) : Exception(message);

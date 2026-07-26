@@ -7,14 +7,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>InputAutomationTool.App</RootNamespace>
-    <AssemblyName>InputAutomationTool</AssemblyName>
+    <RootNamespace>SmartActiveTools.App</RootNamespace>
+    <AssemblyName>SmartActiveTools</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>0.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Core\InputAutomationTool.Core.csproj" />
+    <ProjectReference Include="..\Core\SmartActiveTools.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,12 +1,12 @@
-# Input Automation Tool (SmartActiveTools)
+# SmartActiveTools
 
 > **A powerful, intelligent Windows automation and batch testing tool powered by native Windows OCR and UI Automation.**
 
 ## 📌 Overview
 
-**Input Automation Tool** (SmartActiveTools) is a specialized Windows desktop application designed to automate multi-step verification, form submission, and batch testing (such as activation key validation or automated string entry).
+**SmartActiveTools** is a specialized Windows desktop application designed to automate multi-step verification, form submission, and batch testing (such as activation key validation or automated string entry).
 
-Unlike traditional automation frameworks that rely strictly on standard Windows UI Automation (UIA) accessibility trees—which fail on custom-rendered engines like DirectX, OpenGL, or custom game UIs—Input Automation Tool integrates **native Windows OCR (`Windows.Media.Ocr`)** alongside **fuzzy text matching**, **geometric input field detection**, **image contrast enhancement**, and **interactive visual selection tools**. This enables robust, automated interaction with any application window, even those that expose no UIA elements.
+Unlike traditional automation frameworks that rely strictly on standard Windows UI Automation (UIA) accessibility trees—which fail on custom-rendered engines like DirectX, OpenGL, or custom game UIs—SmartActiveTools integrates **native Windows OCR (`Windows.Media.Ocr`)** alongside **fuzzy text matching**, **geometric input field detection**, **image contrast enhancement**, and **interactive visual selection tools**. This enables robust, automated interaction with any application window, even those that expose no UIA elements.
 
 ---
 
@@ -32,7 +32,7 @@ Unlike traditional automation frameworks that rely strictly on standard Windows 
 - ⏸️ **Interactive Execution Control**: Real-time Pause, Resume, Stop, and customizable step timeouts with interactive manual override prompts (`Retry`, `Skip/Continue`, `Abort`).
 - 🎛️ **Mutually Exclusive Run Modes**: Clean toggle logic between *Stop on First Success* and *Test All Inputs*.
 - 📊 **Batch Testing & Live Logging**: Process hundreds of test keys sequentially with live color-coded status logging, configurable delays (`Delay between next key`), and real-time progress indicators.
-- 💾 **Multi-Location Configuration & Auto-Save**: Searches for `settings.json` across app directory, working directory, and `%AppData%\InputAutomationTool\settings.json` with startup diagnostic logging, automatic default fallback resolution, and auto-saving on setting modifications or exit.
+- 💾 **Multi-Location Configuration & Auto-Save**: Searches for `settings.json` across app directory, working directory, and `%AppData%\SmartActiveTools\settings.json` with startup diagnostic logging, automatic default fallback resolution, and auto-saving on setting modifications or exit.
 
 ---
 
@@ -42,32 +42,32 @@ The project is structured following clean architectural principles with strict s
 
 ```
 SmartActiveTools/
-├── InputAutomationTool.slnx            # Solution definition file
-├── publish/                            # Output directory for standalone single-file executable
+├── SmartActiveTools.slnx            # Solution definition file
+├── publish/                         # Output directory for standalone single-file executable
 └── src/
-    ├── Core/                            # InputAutomationTool.Core (.NET 10 Class Library)
-    │   ├── AutomationEngine.cs          # State machine driving workflow & batch execution
-    │   ├── AutomationConfig.cs          # Configuration model & clean default management
-    │   ├── IScreenDriver.cs             # Driver interface abstraction (UIA vs OCR)
-    │   ├── UiaScreenDriver.cs           # Windows UI Automation driver
-    │   ├── OcrScreenDriver.cs           # OCR-based screen interaction & coordinate driver
-    │   ├── OcrTextReader.cs             # Offline Windows.Media.Ocr integration wrapper
-    │   ├── OcrImageProcessing.cs        # Grayscale, contrast matrix, & 2x resampling pipeline
-    │   ├── PasteGeometry.cs             # Shared coordinate origin & offset parsing geometry
-    │   ├── LanguagePresets.cs           # Multilingual string presets & fallback manager
-    │   ├── ScreenCapture.cs             # High-performance Win32 screen capture helper
-    │   ├── FuzzyMatch.cs                # Levenshtein string distance & fuzzy search algorithms
-    │   ├── PauseTokenSource.cs          # Thread-safe async pause/resume token
-    │   └── Models.cs                    # TargetWindow, UiElement, TestResult data models
-    └── App/                             # InputAutomationTool.App (WPF Desktop App)
-        ├── MainWindow.xaml (.cs)        # Modern WPF user interface layout & VM bindings
-        ├── MainViewModel.cs             # MVVM ViewModel handling async operations & UI state
-        ├── SettingsStore.cs             # Multi-location configuration persistence & diagnostics
+    ├── Core/                        # SmartActiveTools.Core (.NET 10 Class Library)
+    │   ├── AutomationEngine.cs      # State machine driving workflow & batch execution
+    │   ├── AutomationConfig.cs      # Configuration model & clean default management
+    │   ├── IScreenDriver.cs         # Driver interface abstraction (UIA vs OCR)
+    │   ├── UiaScreenDriver.cs       # Windows UI Automation driver
+    │   ├── OcrScreenDriver.cs       # OCR-based screen interaction & coordinate driver
+    │   ├── OcrTextReader.cs         # Offline Windows.Media.Ocr integration wrapper
+    │   ├── OcrImageProcessing.cs    # Grayscale, contrast matrix, & 2x resampling pipeline
+    │   ├── PasteGeometry.cs         # Shared coordinate origin & offset parsing geometry
+    │   ├── LanguagePresets.cs       # Multilingual string presets & fallback manager
+    │   ├── ScreenCapture.cs         # High-performance Win32 screen capture helper
+    │   ├── FuzzyMatch.cs            # Levenshtein string distance & fuzzy search algorithms
+    │   ├── PauseTokenSource.cs      # Thread-safe async pause/resume token
+    │   └── Models.cs                # TargetWindow, UiElement, TestResult data models
+    └── App/                         # SmartActiveTools.App (WPF Desktop App)
+        ├── MainWindow.xaml (.cs)    # Modern WPF user interface layout & VM bindings
+        ├── MainViewModel.cs         # MVVM ViewModel handling async operations & UI state
+        ├── SettingsStore.cs         # Multi-location configuration persistence & diagnostics
         ├── PastePickerWindow.xaml (.cs) # Transparent full-screen interactive paste coordinate picker
-        ├── OcrDebugWindow.xaml (.cs)    # Diagnostic OCR window with delayed capture & side-by-side view
-        ├── Converters.cs                # WPF Value Converters for UI status formatting
-        ├── Mvvm.cs                      # Lightweight ObservableObject & RelayCommand implementation
-        └── app.manifest                 # Windows application manifest (DPI & elevated privileges)
+        ├── OcrDebugWindow.xaml (.cs)# Diagnostic OCR window with delayed capture & side-by-side view
+        ├── Converters.cs            # WPF Value Converters for UI status formatting
+        ├── Mvvm.cs                  # Lightweight ObservableObject & RelayCommand implementation
+        └── app.manifest             # Windows application manifest (DPI & elevated privileges)
 ```
 
 ---
@@ -117,20 +117,20 @@ graph TD
 
 2. **Build the solution**:
    ```bash
-   dotnet build src/App/InputAutomationTool.App.csproj -c Release
+   dotnet build src/App/SmartActiveTools.App.csproj -c Release
    ```
 
 3. **Publish Standalone Executable**:
    ```bash
-   dotnet publish src/App/InputAutomationTool.App.csproj /p:PublishProfile=SingleExe
+   dotnet publish src/App/SmartActiveTools.App.csproj /p:PublishProfile=SingleExe
    ```
-   The generated single-file executable will be saved in `./publish/InputAutomationTool.exe`.
+   The generated single-file executable will be saved in `./publish/SmartActiveTools.exe`.
 
 ---
 
 ## 📖 Configuration Reference (`settings.json`)
 
-Settings are loaded automatically from the application directory, current directory, or `%AppData%\InputAutomationTool\settings.json`:
+Settings are loaded automatically from the application directory, current directory, or `%AppData%\SmartActiveTools\settings.json`:
 
 | Property | Default Value | Description |
 | :--- | :--- | :--- |

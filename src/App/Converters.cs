@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
-using InputAutomationTool.Core;
+using SmartActiveTools.Core;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 public sealed class LogLevelToBrushConverter : IValueConverter
 {

@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 public abstract class ObservableObject : INotifyPropertyChanged
 {

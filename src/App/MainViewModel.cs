@@ -3,11 +3,11 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
-using InputAutomationTool.Core;
+using SmartActiveTools.Core;
 using Microsoft.Win32;
-using InputMethod = InputAutomationTool.Core.InputMethod;
+using InputMethod = SmartActiveTools.Core.InputMethod;
 
-namespace InputAutomationTool.App;
+namespace SmartActiveTools.App;
 
 public sealed class MainViewModel : ObservableObject
 {
