@@ -229,8 +229,10 @@
 
             <DockPanel Grid.Row="0">
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,2">
-                    <Button DockPanel.Dock="Right" Content="Clear" Padding="8,1"
+                    <Button DockPanel.Dock="Right" Content="Clear" Padding="8,1" Margin="4,0,0,0"
                             Command="{Binding ClearInputCommand}" />
+                    <Button DockPanel.Dock="Right" Content="Paste" Padding="8,1" Margin="4,0,0,0"
+                            Command="{Binding PasteInputCommand}" />
                     <TextBlock Text="Input Key (one per line):" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </DockPanel>
                 <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"

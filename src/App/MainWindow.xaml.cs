@@ -12,7 +12,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Title += " v0.2";
+        var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        var verStr = ver != null
+            ? (ver.Build > 0 ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : $"{ver.Major}.{ver.Minor}")
+            : "0.21";
+        Title += $" v{verStr}";
         DataContext = _vm;
 
         // Auto-scroll the log to the newest entry.

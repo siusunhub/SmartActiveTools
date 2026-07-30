@@ -8,6 +8,7 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>SmartActiveTools.Core</RootNamespace>
     <AssemblyName>SmartActiveTools.Core</AssemblyName>
+    <Version>0.21.0</Version>
   </PropertyGroup>
 
 </Project>

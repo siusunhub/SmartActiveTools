@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using SmartActiveTools.Core;
@@ -59,6 +60,7 @@ public sealed class MainViewModel : ObservableObject
         DumpUiaCommand = new RelayCommand(OnDumpUia, () => SelectedWindow != null);
         OcrTextCommand = new RelayCommand(OnOcrText, () => SelectedWindow != null);
         ClearInputCommand = new RelayCommand(() => InputText = "", () => !IsRunning);
+        PasteInputCommand = new RelayCommand(OnPasteInput, () => !IsRunning);
         ApplyLanguageCommand = new RelayCommand(OnApplyLanguage, () => !IsRunning && SelectedLanguage != null);
         SetCustomPasteCommand = new RelayCommand(OnSetCustomPaste, () => !IsRunning && SelectedWindow != null);
         RetryStepCommand = new RelayCommand(() => Decide(StepDecision.Retry));
@@ -279,6 +281,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand DumpUiaCommand { get; }
     public ICommand OcrTextCommand { get; }
     public ICommand ClearInputCommand { get; }
+    public ICommand PasteInputCommand { get; }
     public ICommand ApplyLanguageCommand { get; }
     public ICommand SetCustomPasteCommand { get; }
     public ICommand RetryStepCommand { get; }
@@ -432,6 +435,41 @@ public sealed class MainViewModel : ObservableObject
         };
     }
 
+    private static readonly Regex KeyFormatRegex = new(@"^[A-Za-z0-9]{4}(-[A-Za-z0-9]{4}){4}$", RegexOptions.Compiled);
+
+    private void FilterInputText()
+    {
+        if (string.IsNullOrWhiteSpace(InputText))
+            return;
+
+        var lines = InputText.Replace("\r\n", "\n").Split('\n');
+        var filteredLines = lines
+            .Select(l => l.Trim())
+            .Where(l => KeyFormatRegex.IsMatch(l))
+            .ToList();
+
+        InputText = string.Join(Environment.NewLine, filteredLines);
+    }
+
+    private void OnPasteInput()
+    {
+        try
+        {
+            if (Clipboard.ContainsText())
+            {
+                InputText = Clipboard.GetText();
+            }
+            else
+            {
+                InputText = "";
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Add(LogEntry.Error($"Failed to read clipboard: {ex.Message}"));
+        }
+    }
+
     private static List<string> ParseInputs(string text) =>
         text.Replace("\r\n", "\n").Split('\n')
             .Select(s => s.Trim())
@@ -440,6 +478,8 @@ public sealed class MainViewModel : ObservableObject
 
     private async void OnStart()
     {
+        FilterInputText();
+
         var target = SelectedWindow;
         if (target is null)
         {
