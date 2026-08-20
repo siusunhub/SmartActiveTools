@@ -25,6 +25,7 @@ public partial class OcrDebugWindow : Window
 
         try
         {
+            WindowHelper.EnsureWindowVisibleAndForeground(_target.Handle);
             await Task.Delay(TimeSpan.FromSeconds(3));
             StatusText.Text = "Running OCR…";
 

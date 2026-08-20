@@ -559,6 +559,8 @@ public sealed class MainViewModel : ObservableObject
         var token = _cts.Token;
         var pause = _pause;
 
+        WindowHelper.EnsureWindowVisibleAndForeground(target.Handle);
+
         try
         {
             await RunOnStaThreadAsync(() => engine.RunAsync(

@@ -509,31 +509,11 @@ public sealed class OcrScreenDriver : IScreenDriver
     /// </summary>
     private void ForceForeground(nint hwnd)
     {
-        if (GetForegroundWindow() == hwnd)
-            return;
-
-        var targetThread = GetWindowThreadProcessId(hwnd, out _);
-        var thisThread = GetCurrentThreadId();
-
-        var attached = targetThread != thisThread &&
-                       AttachThreadInput(thisThread, targetThread, true);
-        try
-        {
-            ShowWindow(hwnd, SW_SHOW);
-            BringWindowToTop(hwnd);
-            SetForegroundWindow(hwnd);
-        }
-        finally
-        {
-            if (attached)
-                AttachThreadInput(thisThread, targetThread, false);
-        }
-
-        var fg = GetForegroundWindow();
-        if (fg == hwnd)
+        var ok = WindowHelper.EnsureWindowVisibleAndForeground(hwnd);
+        if (ok)
             Logger?.Invoke($"Foreground OK (target hwnd {hwnd}).");
         else
-            Logger?.Invoke($"!! Foreground is {fg}, not target {hwnd} — keystrokes may not reach it.");
+            Logger?.Invoke($"!! Foreground target hwnd {hwnd} may not be primary foreground window.");
     }
 
     /// <summary>Enters text into the focused field via the selected <see cref="Method"/>.</summary>

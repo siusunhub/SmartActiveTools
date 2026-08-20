@@ -37,6 +37,10 @@ public sealed class AutomationEngine(IScreenDriver driver)
         log.Report(LogEntry.Info($"Loaded {inputs.Count} test strings"));
         log.Report(LogEntry.Info($"Detection mode: {(cfg.UseOcr ? "OCR (screen text)" : "UI Automation")}"));
         log.Report(LogEntry.Info($"Check sequence: {cfg.CheckSequence}"));
+
+        // Restore if minimized and bring to top of screen for reliable OCR capture
+        WindowHelper.EnsureWindowVisibleAndForeground(target.Handle);
+
         progress.Report(new ProgressInfo(0, inputs.Count));
 
         var indices = BuildCheckSequenceIndices(inputs.Count, cfg.CheckSequence);

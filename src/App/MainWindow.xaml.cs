@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using SmartActiveTools.Core;
@@ -12,11 +13,17 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        var asm = System.Reflection.Assembly.GetExecutingAssembly();
+        var ver = asm.GetName().Version;
         var verStr = ver != null
             ? (ver.Build > 0 ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : $"{ver.Major}.{ver.Minor}")
-            : "0.21";
-        Title += $" v{verStr}";
+            : "0.22";
+
+        var buildDate = GetBuildDate();
+        Title += string.IsNullOrEmpty(buildDate)
+            ? $" v{verStr}"
+            : $" v{verStr} ({buildDate})";
+
         DataContext = _vm;
 
         // Auto-scroll the log to the newest entry.
@@ -37,4 +44,22 @@ public partial class MainWindow : Window
                 box.ScrollToEnd();
         });
     }
+
+    private static string GetBuildDate()
+    {
+        try
+        {
+            var processPath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(processPath) && File.Exists(processPath))
+            {
+                return File.GetLastWriteTime(processPath).ToString("dd/MM/yyyy");
+            }
+        }
+        catch
+        {
+            // fallback if file metadata is unavailable
+        }
+        return "";
+    }
 }
+
