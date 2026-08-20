@@ -36,15 +36,19 @@ public sealed class AutomationEngine(IScreenDriver driver)
     {
         log.Report(LogEntry.Info($"Loaded {inputs.Count} test strings"));
         log.Report(LogEntry.Info($"Detection mode: {(cfg.UseOcr ? "OCR (screen text)" : "UI Automation")}"));
+        log.Report(LogEntry.Info($"Check sequence: {cfg.CheckSequence}"));
         progress.Report(new ProgressInfo(0, inputs.Count));
 
-        for (var i = 0; i < inputs.Count; i++)
+        var indices = BuildCheckSequenceIndices(inputs.Count, cfg.CheckSequence);
+
+        for (var step = 0; step < indices.Length; step++)
         {
             ct.ThrowIfCancellationRequested();
             await pause.WaitWhilePausedAsync(ct).ConfigureAwait(false);
 
-            var input = inputs[i];
-            var number = i + 1;
+            var lineIndex = indices[step];
+            var input = inputs[lineIndex];
+            var number = lineIndex + 1;
             log.Report(LogEntry.Info($"Trying {number}/{inputs.Count}: {input}"));
 
             if (!_driver.IsWindowAlive(target))
@@ -65,12 +69,12 @@ public sealed class AutomationEngine(IScreenDriver driver)
             {
                 log.Report(LogEntry.Error($"Error on '{input}': {ex.Message}. Stopped at case {number}/{inputs.Count}."));
                 results.Add(new TestResult(number, input, Outcome.Error, ex.Message, DateTime.Now));
-                progress.Report(new ProgressInfo(number, inputs.Count));
+                progress.Report(new ProgressInfo(step + 1, inputs.Count));
                 throw; // surface to caller; state is saved in `results`
             }
 
             results.Add(result);
-            progress.Report(new ProgressInfo(number, inputs.Count));
+            progress.Report(new ProgressInfo(step + 1, inputs.Count));
 
             if (result.Outcome == Outcome.Pass)
             {
@@ -91,6 +95,29 @@ public sealed class AutomationEngine(IScreenDriver driver)
         }
 
         log.Report(LogEntry.Info("All test strings processed."));
+    }
+
+    private static int[] BuildCheckSequenceIndices(int count, CheckSequence sequence)
+    {
+        var indices = Enumerable.Range(0, count).ToArray();
+        switch (sequence)
+        {
+            case CheckSequence.Desc:
+                Array.Reverse(indices);
+                break;
+            case CheckSequence.Random:
+                var rng = Random.Shared;
+                for (var i = indices.Length - 1; i > 0; i--)
+                {
+                    var k = rng.Next(i + 1);
+                    (indices[i], indices[k]) = (indices[k], indices[i]);
+                }
+                break;
+            case CheckSequence.Asc:
+            default:
+                break;
+        }
+        return indices;
     }
 
     private async Task<(Outcome, string?)> ProcessOneAsync(

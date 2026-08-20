@@ -29,6 +29,9 @@ public sealed class AutomationConfig
     /// <summary>Use OCR-based detection instead of UIA (for custom-rendered apps).</summary>
     public bool UseOcr { get; set; }
 
+    /// <summary>Controls visibility of the OCR Text debug button in the UI.</summary>
+    public bool ShowOcrTextDebugButton { get; set; } = false;
+
     /// <summary>OCR-mode: extra pixel offset added to the input-probe base (fine-tuning).</summary>
     public int InputOffsetX { get; set; }
     public int InputOffsetY { get; set; }
@@ -91,6 +94,9 @@ public sealed class AutomationConfig
     /// <summary>Delay between submissions; guards against target-app throttling.</summary>
     public int BetweenCasesDelayMs { get; set; }
 
+    /// <summary>Order in which keys are processed (Asc, Desc, or Random).</summary>
+    public CheckSequence CheckSequence { get; set; } = CheckSequence.Asc;
+
     public string ContinueButtonText { get; set; } = Def.ContinueButtonText;
     public string BackButtonText { get; set; } = Def.BackButtonText;
 
@@ -135,4 +141,12 @@ public sealed class AutomationConfig
 
     private static string Resolve(string value, string fallback) =>
         string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CheckSequence
+{
+    Asc,
+    Desc,
+    Random
 }

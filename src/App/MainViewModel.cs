@@ -41,12 +41,14 @@ public sealed class MainViewModel : ObservableObject
         _continueTestingAll = cfg.ContinueTestingAll;
         _stepTimeoutSeconds = cfg.StepTimeoutSeconds;
         _betweenCasesDelayMs = cfg.BetweenCasesDelayMs;
+        _selectedCheckSequence = cfg.CheckSequence;
         _detectRetries = cfg.DetectRetries;
         _detectRetryDelayMs = cfg.DetectRetryDelayMs;
         _verifySeconds = cfg.VerifySeconds;
         _inputProbeShift = cfg.InputProbeShift;
         _useCustomPastePosition = cfg.UseCustomPastePosition;
         _skipPasteVerify = cfg.SkipPasteVerify;
+        _showOcrTextDebugButton = cfg.ShowOcrTextDebugButton;
         _customPastePositionText = PasteGeometry.Format(cfg.CustomPasteDx, cfg.CustomPasteDy);
         _rememberedPasteDx = cfg.RememberedPasteDx;
         _rememberedPasteDy = cfg.RememberedPasteDy;
@@ -175,6 +177,10 @@ public sealed class MainViewModel : ObservableObject
     private int _betweenCasesDelayMs;
     public int BetweenCasesDelayMs { get => _betweenCasesDelayMs; set => Set(ref _betweenCasesDelayMs, value); }
 
+    private CheckSequence _selectedCheckSequence = CheckSequence.Asc;
+    public CheckSequence SelectedCheckSequence { get => _selectedCheckSequence; set => Set(ref _selectedCheckSequence, value); }
+    public IReadOnlyList<CheckSequence> CheckSequences { get; } = Enum.GetValues<CheckSequence>();
+
     private int _detectRetries;
     public int DetectRetries { get => _detectRetries; set => Set(ref _detectRetries, value); }
 
@@ -195,6 +201,10 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Click the saved position and continue without OCR-verifying the paste.</summary>
     private bool _skipPasteVerify;
     public bool SkipPasteVerify { get => _skipPasteVerify; set => Set(ref _skipPasteVerify, value); }
+
+    /// <summary>Show or hide the OCR Text debug button on the main UI.</summary>
+    private bool _showOcrTextDebugButton;
+    public bool ShowOcrTextDebugButton { get => _showOcrTextDebugButton; set => Set(ref _showOcrTextDebugButton, value); }
 
     /// <summary>The offset as editable "dx,dy" text; parsed in <see cref="BuildConfig"/>.</summary>
     private string _customPastePositionText;
@@ -419,6 +429,7 @@ public sealed class MainViewModel : ObservableObject
             ContinueTestingAll = ContinueTestingAll,
             StepTimeoutSeconds = StepTimeoutSeconds,
             BetweenCasesDelayMs = BetweenCasesDelayMs,
+            CheckSequence = SelectedCheckSequence,
             UseOcr = true,
             DetectRetries = DetectRetries,
             DetectRetryDelayMs = DetectRetryDelayMs,
@@ -427,6 +438,7 @@ public sealed class MainViewModel : ObservableObject
             InputProbeShift = InputProbeShift,
             UseCustomPastePosition = UseCustomPastePosition && hasOffset,
             SkipPasteVerify = SkipPasteVerify,
+            ShowOcrTextDebugButton = ShowOcrTextDebugButton,
             CustomPasteDx = dx,
             CustomPasteDy = dy,
             RememberedPasteDx = _rememberedPasteDx,

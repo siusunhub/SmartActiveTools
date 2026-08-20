@@ -206,6 +206,7 @@ Settings are loaded automatically from the application directory, current direct
 | `DetectRetryDelayMs`| `1000` | Delay (ms) between screen detection retries |
 | `VerifySeconds` | `10` | Maximum wait time (seconds) for result screen verification |
 | `BetweenCasesDelayMs`| `0` | Delay between next key (ms) before starting the next test key |
+| `CheckSequence` | `"Asc"` | Check sequence order (`Asc`, `Desc`, or `Random`) |
 | `StepTimeoutSeconds`| `1` | Timeout (seconds) for individual action steps |
 | `PollIntervalMs` | `250` | Polling interval (ms) for screen element checks |
 
