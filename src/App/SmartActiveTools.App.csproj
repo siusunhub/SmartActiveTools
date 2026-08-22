@@ -10,11 +10,17 @@
     <RootNamespace>SmartActiveTools.App</RootNamespace>
     <AssemblyName>SmartActiveTools</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <Version>0.22.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Core\SmartActiveTools.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="app.ico" />
+    <Resource Include="icons8-ps.png" />
   </ItemGroup>
 
 </Project>

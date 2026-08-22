@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SmartActiveTools.App"
         Title="SmartActiveTools" Height="640" Width="480"
+        Icon="app.ico"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -189,7 +190,7 @@
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="Check sequence:" />
-                    <ComboBox Width="70"
+                    <ComboBox Width="90"
                               ItemsSource="{Binding CheckSequences}"
                               SelectedItem="{Binding SelectedCheckSequence}"
                               ToolTip="Order in which input keys are checked (Asc, Desc, or Random)" />
