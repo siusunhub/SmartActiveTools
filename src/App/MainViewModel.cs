@@ -53,6 +53,7 @@ public sealed class MainViewModel : ObservableObject
         _rememberedPasteDx = cfg.RememberedPasteDx;
         _rememberedPasteDy = cfg.RememberedPasteDy;
         _rememberedPasteMachine = cfg.RememberedPasteMachine;
+        _isAlwaysOnTop = cfg.AlwaysOnTop;
 
         StartCommand = new RelayCommand(OnStart, () => !IsRunning && SelectedWindow != null);
         PauseCommand = new RelayCommand(OnPauseToggle, () => IsRunning);
@@ -205,6 +206,22 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Show or hide the OCR Text debug button on the main UI.</summary>
     private bool _showOcrTextDebugButton;
     public bool ShowOcrTextDebugButton { get => _showOcrTextDebugButton; set => Set(ref _showOcrTextDebugButton, value); }
+
+    private bool _resumeAlwaysOnTop;
+    private bool _isSuppressingAlwaysOnTop;
+    private bool _isAlwaysOnTop;
+    public bool IsAlwaysOnTop
+    {
+        get => _isAlwaysOnTop;
+        set
+        {
+            if (Set(ref _isAlwaysOnTop, value))
+            {
+                if (!_isSuppressingAlwaysOnTop)
+                    SaveConfig();
+            }
+        }
+    }
 
     /// <summary>The offset as editable "dx,dy" text; parsed in <see cref="BuildConfig"/>.</summary>
     private string _customPastePositionText;
@@ -439,6 +456,7 @@ public sealed class MainViewModel : ObservableObject
             UseCustomPastePosition = UseCustomPastePosition && hasOffset,
             SkipPasteVerify = SkipPasteVerify,
             ShowOcrTextDebugButton = ShowOcrTextDebugButton,
+            AlwaysOnTop = _resumeAlwaysOnTop || IsAlwaysOnTop,
             CustomPasteDx = dx,
             CustomPasteDy = dy,
             RememberedPasteDx = _rememberedPasteDx,
@@ -559,10 +577,18 @@ public sealed class MainViewModel : ObservableObject
         var token = _cts.Token;
         var pause = _pause;
 
-        WindowHelper.EnsureWindowVisibleAndForeground(target.Handle);
+        _resumeAlwaysOnTop = IsAlwaysOnTop;
+        if (_resumeAlwaysOnTop)
+        {
+            _isSuppressingAlwaysOnTop = true;
+            IsAlwaysOnTop = false;
+            _isSuppressingAlwaysOnTop = false;
+        }
 
         try
         {
+            WindowHelper.EnsureWindowVisibleAndForeground(target.Handle);
+
             await RunOnStaThreadAsync(() => engine.RunAsync(
                 inputs, cfg, target, logProgress, runProgress, resultSink, token, pause).GetAwaiter().GetResult());
             StatusText = "Completed.";
@@ -605,6 +631,14 @@ public sealed class MainViewModel : ObservableObject
             _cts?.Dispose();
             _cts = null;
             _pause = null;
+
+            if (_resumeAlwaysOnTop)
+            {
+                _resumeAlwaysOnTop = false;
+                _isSuppressingAlwaysOnTop = true;
+                IsAlwaysOnTop = true;
+                _isSuppressingAlwaysOnTop = false;
+            }
         }
     }
 

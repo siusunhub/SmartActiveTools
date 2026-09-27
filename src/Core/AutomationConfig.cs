@@ -32,6 +32,9 @@ public sealed class AutomationConfig
     /// <summary>Controls visibility of the OCR Text debug button in the UI.</summary>
     public bool ShowOcrTextDebugButton { get; set; } = false;
 
+    /// <summary>Keeps the main tool window always on top of other windows.</summary>
+    public bool AlwaysOnTop { get; set; }
+
     /// <summary>OCR-mode: extra pixel offset added to the input-probe base (fine-tuning).</summary>
     public int InputOffsetX { get; set; }
     public int InputOffsetY { get; set; }
