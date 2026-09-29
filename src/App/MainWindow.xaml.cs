@@ -17,7 +17,7 @@ public partial class MainWindow : Window
         var ver = asm.GetName().Version;
         var verStr = ver != null
             ? (ver.Build > 0 ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : $"{ver.Major}.{ver.Minor}")
-            : "0.23";
+            : "0.24";
 
         var buildDate = GetBuildDate();
         Title += string.IsNullOrEmpty(buildDate)
@@ -59,7 +59,7 @@ public partial class MainWindow : Window
         {
             // fallback if file metadata is unavailable
         }
-        return "27/09/2026";
+        return "29/09/2026";
     }
 }
 

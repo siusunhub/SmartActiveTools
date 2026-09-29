@@ -222,11 +222,12 @@ public sealed class AutomationEngine(IScreenDriver driver)
         if (outcome == Outcome.Fail)
         {
             log.Report(LogEntry.Fail($"Detected result: {cfg.EffectiveWin3}"));
-            var back = _driver.FindButton(target, cfg.EffectiveBackButton);
+            var back = _driver.FindButton(target, cfg.EffectiveBackButton)
+                       ?? await WaitForButtonAsync(target, cfg.EffectiveBackButton, cfg, log, ct).ConfigureAwait(false);
             if (back != null)
                 await _driver.InvokeAsync(back, ct).ConfigureAwait(false);
             // Return to the Win1 screen so the next case can start cleanly.
-            await WaitForTextAsync(target, cfg.EffectiveWin1, cfg, log, ct);
+            await WaitForTextAsync(target, cfg.EffectiveWin1, cfg, log, ct).ConfigureAwait(false);
         }
         else if (outcome == Outcome.Pass)
         {
@@ -291,6 +292,8 @@ public sealed class AutomationEngine(IScreenDriver driver)
                 return Screen.Result;
             if (_driver.TryFindText(target, cfg.EffectiveWin3Review) != null)
                 return Screen.Result;
+            if (_driver.TryFindText(target, cfg.EffectiveWin4) != null)
+                return Screen.Result;
             if (_driver.TryFindText(target, cfg.EffectiveWin2) != null)
                 return Screen.Win2;
 
@@ -322,13 +325,18 @@ public sealed class AutomationEngine(IScreenDriver driver)
             attempt++;
             _driver.InvalidateCache(); // re-read the screen fresh each attempt
 
+            if (_driver.TryFindText(target, cfg.EffectiveWin4) != null)
+            {
+                return (Outcome.Pass, $"matched '{cfg.EffectiveWin4}'");
+            }
+
             if (_driver.TryFindText(target, cfg.EffectiveWin3) != null)
             {
                 var hasBack = _driver.FindButton(target, cfg.EffectiveBackButton) != null;
                 return (Outcome.Fail, hasBack ? $"matched '{cfg.EffectiveWin3}'" : $"matched '{cfg.EffectiveWin3}' (no Back button)");
             }
 
-            // Win3-Success screen: find and click Activate — that IS the success.
+            // Win3-Success screen: find and click Activate, then scan for Win4 complete or Win3 fail.
             if (_driver.TryFindText(target, cfg.EffectiveWin3Review) != null)
             {
                 var activateBtn = _driver.FindButton(target, cfg.EffectiveActivateButton);
@@ -336,7 +344,8 @@ public sealed class AutomationEngine(IScreenDriver driver)
                 {
                     log.Report(LogEntry.Info($"Success screen ('{cfg.EffectiveWin3Review}') — clicking '{cfg.EffectiveActivateButton}'…"));
                     await _driver.InvokeAsync(activateBtn, ct).ConfigureAwait(false);
-                    return (Outcome.Pass, $"activated via '{cfg.EffectiveActivateButton}'");
+                    await Task.Delay(500, ct).ConfigureAwait(false);
+                    return await WaitForActivationOutcomeAsync(target, cfg, log, ct).ConfigureAwait(false);
                 }
                 log.Report(LogEntry.Info($"Success screen found but '{cfg.EffectiveActivateButton}' button not visible yet — waiting…"));
             }
@@ -349,6 +358,47 @@ public sealed class AutomationEngine(IScreenDriver driver)
         }
 
         throw new StepException($"Result screen not detected within {cfg.VerifySeconds}s (unexpected screen)");
+    }
+
+    /// <summary>
+    /// After clicking Activate on the Win3 review screen, waits and scans to detect whether
+    /// activation completes successfully (Win4 Success text) or fails (loops back to Win3 Fail text).
+    /// </summary>
+    private async Task<(Outcome, string?)> WaitForActivationOutcomeAsync(
+        TargetWindow target, AutomationConfig cfg, IProgress<LogEntry> log, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow + cfg.VerifyTimeout;
+        var attempt = 0;
+
+        log.Report(LogEntry.Info($"Scanning post-activation screen (waiting for '{cfg.EffectiveWin4}' or '{cfg.EffectiveWin3}')…"));
+
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            attempt++;
+            _driver.InvalidateCache();
+
+            if (_driver.TryFindText(target, cfg.EffectiveWin4) != null)
+            {
+                log.Report(LogEntry.Info($"Activation completed successfully ('{cfg.EffectiveWin4}')"));
+                return (Outcome.Pass, $"matched '{cfg.EffectiveWin4}'");
+            }
+
+            if (_driver.TryFindText(target, cfg.EffectiveWin3) != null)
+            {
+                var hasBack = _driver.FindButton(target, cfg.EffectiveBackButton) != null;
+                log.Report(LogEntry.Info($"Activation failed: loop back to '{cfg.EffectiveWin3}'"));
+                return (Outcome.Fail, hasBack ? $"matched '{cfg.EffectiveWin3}'" : $"matched '{cfg.EffectiveWin3}' (no Back button)");
+            }
+
+            var remaining = (deadline - DateTime.UtcNow).TotalSeconds;
+            if (remaining <= 0)
+                break;
+            log.Report(LogEntry.Info($"Waiting for activation outcome… attempt {attempt}, {remaining:0}s left"));
+            await Task.Delay(cfg.DetectRetryDelayMs, ct).ConfigureAwait(false);
+        }
+
+        throw new StepException($"Activation outcome not detected within {cfg.VerifySeconds}s (neither '{cfg.EffectiveWin4}' nor '{cfg.EffectiveWin3}' appeared)");
     }
 
     private Task<UiElement?> WaitForTextAsync(

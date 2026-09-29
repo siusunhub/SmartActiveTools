@@ -24,7 +24,21 @@ public sealed class AutomationConfig
     public string Win3SuccText { get; set; } = Def.Win3SuccessText;
     public string ActivateButtonText { get; set; } = Def.ActivateButtonText;
 
-    public string SuccessText { get; set; } = Def.SuccessText;
+    /// <summary>Text on the Win4 success screen (after clicking Activate).</summary>
+    public string Win4SuccText { get; set; } = Def.SuccessText;
+
+    [JsonPropertyName("SuccessText")]
+    public string? SuccessText
+    {
+        get => Win4SuccText;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && !string.Equals(value.Trim(), "Success", StringComparison.OrdinalIgnoreCase))
+            {
+                Win4SuccText = value;
+            }
+        }
+    }
 
     /// <summary>Use OCR-based detection instead of UIA (for custom-rendered apps).</summary>
     public bool UseOcr { get; set; }
@@ -109,8 +123,9 @@ public sealed class AutomationConfig
     [JsonIgnore] public string EffectiveWin2 => Resolve(Win2DetectText, Def.Win2DetectText);
     [JsonIgnore] public string EffectiveWin3 => Resolve(Win3FailText, Def.Win3FailText);
     [JsonIgnore] public string EffectiveWin3Review => Resolve(Win3SuccText, Def.Win3SuccessText);
+    [JsonIgnore] public string EffectiveWin4 => Resolve(Win4SuccText, Def.SuccessText);
     [JsonIgnore] public string EffectiveActivateButton => Resolve(ActivateButtonText, Def.ActivateButtonText);
-    [JsonIgnore] public string EffectiveSuccess => Resolve(SuccessText, Def.SuccessText);
+    [JsonIgnore] public string EffectiveSuccess => EffectiveWin4;
     [JsonIgnore] public string EffectiveContinueButton => Resolve(ContinueButtonText, Def.ContinueButtonText);
     [JsonIgnore] public string EffectiveBackButton => Resolve(BackButtonText, Def.BackButtonText);
 
@@ -127,10 +142,10 @@ public sealed class AutomationConfig
         Win2DetectText     = Resolve(Win2DetectText, Def.Win2DetectText);
         Win3FailText       = Resolve(Win3FailText, Def.Win3FailText);
         Win3SuccText       = Resolve(Win3SuccText, Def.Win3SuccessText);
+        Win4SuccText       = Resolve(Win4SuccText, Def.SuccessText);
         ActivateButtonText = Resolve(ActivateButtonText, Def.ActivateButtonText);
         BackButtonText     = Resolve(BackButtonText, Def.BackButtonText);
         ContinueButtonText = Resolve(ContinueButtonText, Def.ContinueButtonText);
-        SuccessText        = Resolve(SuccessText, Def.SuccessText);
         return this;
     }
 

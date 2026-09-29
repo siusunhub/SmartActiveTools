@@ -41,7 +41,7 @@ public static class LanguagePresets
         Win2DetectText: "Activation key",
         Win3FailText: "Activation failed",
         Win3SuccessText: "Review your activation details",
-        SuccessText: "Success",
+        SuccessText: "Activation was successful",
         ContinueButtonText: "Continue",
         ActivateButtonText: "Activate",
         BackButtonText: "Back");

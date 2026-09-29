@@ -1,5 +1,10 @@
 # SmartActiveTools
 
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Version](https://img.shields.io/badge/Version-0.24.0-blue)](#)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 > **A powerful, intelligent Windows automation and batch testing tool powered by native Windows OCR and UI Automation.**
 
 ## 📌 Overview
@@ -28,7 +33,7 @@ Unlike traditional automation frameworks that rely strictly on standard Windows 
   - **OCR Debug Window (`OcrDebugWindow`)**: Capture delayed snapshots (3s timer), crop input regions, compare raw vs enhanced OCR outputs side-by-side, and export diagnostic images (`ocr-capture-normal.png` / `ocr-capture-enhanced.png`).
   - **Element Tree Dumper**: One-click UIA element tree inspection for rapid target control discovery.
 - 🧠 **Machine-Scoped Offset Memory**: Automatically remembers scanned paste offsets on the current PC (`RememberedPasteMachine`) so subsequent automation runs bypass coordinate discovery scans.
-- 🔄 **State Machine Workflow (`AutomationEngine`)**: Automatically navigates multi-screen flows (`Win1 Initial Screen` ➔ `Win2 Input Screen` ➔ `Win3 Verification / Review Screen`).
+- 🔄 **State Machine Workflow (`AutomationEngine`)**: Automatically navigates multi-screen flows (`Win1 Initial Screen` ➔ `Win2 Input Screen` ➔ `Win3 Review Screen` ➔ `Win4 Post-Activation Screen`).
 - ⏸️ **Interactive Execution Control**: Real-time Pause, Resume, Stop, and customizable step timeouts with interactive manual override prompts (`Retry`, `Skip/Continue`, `Abort`).
 - 🎛️ **Mutually Exclusive Run Modes**: Clean toggle logic between *Stop on First Success* and *Test All Inputs*.
 - 📊 **Batch Testing & Live Logging**: Process hundreds of test keys sequentially with live color-coded status logging, configurable delays (`Delay between next key`), and real-time progress indicators.
@@ -107,7 +112,16 @@ graph TD
         O --> Q[OCR Read Enhanced Crop & Verify Text Match]
         Q -->|Verified| P
         Q -->|Failed / Retry| R[Interactive Prompt or Retry Shift Probe]
-        P --> S[Wait for Win3 Verification / Success Marker]
+    end
+
+    subgraph Result_Verification ["4. Result Verification & Post-Activation Flow"]
+        P --> S{Result Screen Detection}
+        S -->|Win3 Fail Text| T[Outcome: Fail ➔ Click Back ➔ Next Case]
+        S -->|Win4 Success Text| U[Outcome: Pass ➔ Success Result]
+        S -->|Win3 Review Text| V[Click Activate Button]
+        V --> W[Wait & Scan Post-Activation Outcome]
+        W -->|Win4 Success Text| U
+        W -->|Win3 Fail Text| T
     end
 ```
 
@@ -119,7 +133,7 @@ graph TD
 
 2. **Anchor Text Recognition & Fuzzy Matching (`FuzzyMatch`)**:
    - Converts raw `OcrLine` bounding boxes into screen space coordinates.
-   - Evaluates text using Levenshtein distance fuzzy matching, allowing anchor text (`Win1DetectText`, `Win2DetectText`, `Win3FailText`, `Win3SuccText`) to be recognized reliably even with minor OCR artifacts, custom fonts, or anti-aliasing.
+   - Evaluates text using Levenshtein distance fuzzy matching, allowing anchor text (`Win1DetectText`, `Win2DetectText`, `Win3FailText`, `Win3SuccText`, `Win4SuccText`) to be recognized reliably even with minor OCR artifacts, custom fonts, or anti-aliasing.
 
 3. **Multi-Strategy Paste Coordinate Resolution (`PasteGeometry`)**:
    - Establishes a DPI-aware base coordinate origin relative to the OCR-located Win2 label center (`CenterX + 50, CenterY + 20`).
@@ -141,6 +155,13 @@ graph TD
      - **Contrast Boosting**: Applies high-contrast matrix transform (`1.8x`) with offset centering.
      - **Bicubic Resampling**: Upscales the cropped snippet by `2x` using high-quality bicubic interpolation.
    - Re-reads the enhanced image snippet with `Windows.Media.Ocr` to confirm that the input text landed correctly before clicking Continue (unless `SkipPasteVerify` is enabled).
+
+6. **Result Verification & Post-Activation Flow (`AutomationEngine`)**:
+   - Monitors the screen for immediate results: `Win3FailText` (direct failure), `Win4SuccText` (direct success), or `Win3SuccText` (review screen).
+   - When the review screen is detected, it clicks the `Activate` button and enters the post-activation detection loop.
+   - Races `Win4 Success Text` (`Activation was successful`) against `Win3 Fail Text` (`Activation failed`).
+   - On success: logs pass and respects `StopOnFirstSuccess` or `ContinueTestingAll`.
+   - On failure (or loop-back to `Win3FailText`): logs fail, clicks the Back button (with retry), and returns cleanly to `Win1` for the next test case.
 
 ---
 
@@ -186,11 +207,11 @@ Settings are loaded automatically from the application directory, current direct
 | `Win1DetectText` | `Use a purchased activation key` | Anchor text for the initial screen |
 | `Win2DetectText` | `Activation key` | Anchor text for the input form screen |
 | `Win3FailText` | `Activation failed` | Anchor text marking a failed attempt |
-| `Win3SuccText` | `Review your activation details` | Text for review screen requiring final activation |
+| `Win3SuccText` | `Review your activation details` | Text on the Win3 review screen (requires clicking Activate to proceed) |
+| `Win4SuccText` / `SuccessText` | `Activation was successful` | Text shown when activation is successful (Win4 success screen) |
 | `ActivateButtonText`| `Activate` | Button text to click on review screen |
 | `ContinueButtonText`| `Continue` | Button text to click on input form screen |
 | `BackButtonText` | `Back` | Button text to click to return from result screen |
-| `SuccessText` | `Success` | Success verification marker text |
 | `UseOcr` | `false` | Enable OCR screen driver instead of Windows UIA driver |
 | `InputMethod` | `Paste` (`0`) | Input entry method (`Paste`, `Type`, `ScanCode`, `PasteButton`) |
 | `InputOffsetX` / `Y` | `0` / `0` | Extra pixel fine-tuning offsets added to input field position |

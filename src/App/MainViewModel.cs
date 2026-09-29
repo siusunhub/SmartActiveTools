@@ -33,10 +33,10 @@ public sealed class MainViewModel : ObservableObject
         _win2 = cfg.Win2DetectText;
         _win3 = cfg.Win3FailText;
         _win3Review = cfg.Win3SuccText;
+        _win4Success = cfg.Win4SuccText;
         _activateButtonText = cfg.ActivateButtonText;
         _backButtonText = cfg.BackButtonText;
         _continueButtonText = cfg.ContinueButtonText;
-        _successText = cfg.SuccessText;
         _stopOnFirstSuccess = cfg.StopOnFirstSuccess;
         _continueTestingAll = cfg.ContinueTestingAll;
         _stepTimeoutSeconds = cfg.StepTimeoutSeconds;
@@ -130,13 +130,17 @@ public sealed class MainViewModel : ObservableObject
     private string _continueButtonText;
     public string ContinueButtonText { get => _continueButtonText; set => Set(ref _continueButtonText, value); }
 
-    private string _successText;
-    public string SuccessText { get => _successText; set => Set(ref _successText, value); }
+    private string _win4Success;
+    public string Win4SuccessText { get => _win4Success; set => Set(ref _win4Success, value); }
+    public string SuccessText { get => Win4SuccessText; set => Win4SuccessText = value; }
 
     // placeholder hints showing the hardcoded defaults
     public string Win1Default => LanguagePresets.Fallback.Win1DetectText;
     public string Win2Default => LanguagePresets.Fallback.Win2DetectText;
     public string Win3Default => LanguagePresets.Fallback.Win3FailText;
+    public string Win3ReviewDefault => LanguagePresets.Fallback.Win3SuccessText;
+    public string Win4Default => LanguagePresets.Fallback.SuccessText;
+    public string SuccessDefault => Win4Default;
 
     // --- options -----------------------------------------------------------
 
@@ -351,6 +355,7 @@ public sealed class MainViewModel : ObservableObject
         Win2Text = preset.Win2DetectText;
         Win3Text = preset.Win3FailText;
         Win3ReviewText = preset.Win3SuccessText;
+        Win4SuccessText = preset.SuccessText;
         ContinueButtonText = preset.ContinueButtonText;
         ActivateButtonText = preset.ActivateButtonText;
         BackButtonText = preset.BackButtonText;
@@ -438,10 +443,10 @@ public sealed class MainViewModel : ObservableObject
             Win2DetectText = Win2Text,
             Win3FailText = Win3Text,
             Win3SuccText = Win3ReviewText,
+            Win4SuccText = Win4SuccessText,
             ActivateButtonText = ActivateButtonText,
             BackButtonText = BackButtonText,
             ContinueButtonText = ContinueButtonText,
-            SuccessText = SuccessText,
             StopOnFirstSuccess = StopOnFirstSuccess,
             ContinueTestingAll = ContinueTestingAll,
             StepTimeoutSeconds = StepTimeoutSeconds,
